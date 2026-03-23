@@ -15,6 +15,10 @@ npm install
 npm install -D tailwindcss postcss autoprefixer
 npx tailwindcss init -p
 
+# Install Utilities, State Management & Routing
+npm install react-router-dom zustand react-markdown uuid
+npm install -D @types/uuid
+
 # Install Plotly
 npm install plotly.js react-plotly.js
 npm install -D @types/react-plotly.js

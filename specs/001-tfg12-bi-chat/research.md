@@ -16,6 +16,14 @@
 - **Alternatives considered**: Recharts, Chart.js.
 
 ## Data Storage & State Management
-- **Decision**: In-memory mocked data via a Repository Pattern abstraction.
-- **Rationale**: User explicitly requested mock data in memory for now, but with the constraint that it must be easily swappable to a database later. The Repository pattern ensures that UI components call `ChatRepository.getHistory()` instead of accessing local arrays directly. By defining an interface, the implementation can be swapped to a real API later.
-- **Alternatives considered**: LocalStorage/IndexedDB (initially considered, but user opted for simple in-memory mocks first, keeping the abstraction open).
+- **Decision**: Zustand for UI state + Repository Pattern for mocked API calls.
+- **Rationale**: User requested mock data in memory while keeping the architecture open for a real DB later. The Repository pattern (`IChatService`, `IChartService`) abstracts the data origin. Zustand provides a lightweight global store so that navigation between the chat view and the gallery doesn't trigger redundant data fetching or prop drilling.
+- **Alternatives considered**: React Context (rejected for potential re-rendering issues at scale), Redux (overkill for an MVP).
+
+## Routing & Navigation
+- **Decision**: React Router DOM (v6+)
+- **Rationale**: The application has distinct views (Linear Chat, Gallery Dashboard, Groups). A routing library allows for deep linking and logical separation of the UI components.
+
+## Markdown Rendering
+- **Decision**: `react-markdown`
+- **Rationale**: AI chat responses typically contain markdown formatting (bold, lists, code blocks). To render them correctly and safely inside the chat bubbles, a dedicated markdown parser is necessary.

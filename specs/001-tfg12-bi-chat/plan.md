@@ -10,7 +10,7 @@ Implementation of a scalable BI Chat frontend with conversational chart generati
 ## Technical Context
 
 **Language/Version**: TypeScript / JavaScript (React via Vite)
-**Primary Dependencies**: React, Vite, TailwindCSS, Plotly.js, react-plotly.js
+**Primary Dependencies**: React, Vite, TailwindCSS, Plotly.js, react-plotly.js, react-router-dom, zustand, react-markdown, uuid
 **Storage**: In-memory (Mocked) with Repository abstraction for future DB connection
 **Testing**: Vitest / React Testing Library
 **Target Platform**: Web Browser

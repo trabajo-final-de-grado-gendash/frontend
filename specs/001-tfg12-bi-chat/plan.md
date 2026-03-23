@@ -1,108 +1,68 @@
-# Implementation Plan: [FEATURE]
+# Implementation Plan: BI Chat Frontend (TFG-12)
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
+**Branch**: `001-tfg12-bi-chat` | **Date**: 2026-03-23 | **Spec**: `../spec.md`
+**Input**: Feature specification from `/specs/001-tfg12-bi-chat/spec.md`
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Implementation of a scalable BI Chat frontend with conversational chart generation, chart gallery, and history. Uses React + Vite, TailwindCSS, and Plotly.js, with initial in-memory mocked data.
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
-
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: TypeScript / JavaScript (React via Vite)
+**Primary Dependencies**: React, Vite, TailwindCSS, Plotly.js, react-plotly.js
+**Storage**: In-memory (Mocked) with Repository abstraction for future DB connection
+**Testing**: Vitest / React Testing Library
+**Target Platform**: Web Browser
+**Project Type**: Single-page Web Application (SPA)
+**Performance Goals**: Render charts without UI blocking, < 100ms interaction latency
+**Constraints**: Must cleanly decouple local state from UI to allow future backend integration
+**Scale/Scope**: Initial POC MVP
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- [ ] **Scalability First**: Does the plan ensure modularity, separation of concerns, and loose coupling?
-- [ ] **Component-Driven**: Are the proposed UI elements designed as reusable, isolated components?
-- [ ] **Natural Language Focus**: Is the architecture robust enough for variable-length natural language inputs and clear chat history?
-- [ ] **Dynamic BI Rendering**: Does the plan support dynamic rendering of abstract chart configurations (e.g., Plotly.js) with good performance?
-- [ ] **Graceful Degradation**: Is there adequate error handling, visual feedback for loading, and resilience against AI failures?
+- [x] **Scalability First**: Does the plan ensure modularity, separation of concerns, and loose coupling?
+  *Pass: Repository pattern isolates data fetching; React components isolate UI.*
+- [x] **Component-Driven**: Are the proposed UI elements designed as reusable, isolated components?
+  *Pass: UI will be built with TailwindCSS using atomic/reusable React components.*
+- [x] **Natural Language Focus**: Is the architecture robust enough for variable-length natural language inputs and clear chat history?
+  *Pass: Chat state will handle varied inputs and scroll management.*
+- [x] **Dynamic BI Rendering**: Does the plan support dynamic rendering of abstract chart configurations (e.g., Plotly.js) with good performance?
+  *Pass: Plotly.js will dynamically render configurations.*
+- [x] **Graceful Degradation**: Is there adequate error handling, visual feedback for loading, and resilience against AI failures?
+  *Pass: Explicit loading and error states built into the component lifecycle.*
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/[###-feature]/
+specs/001-tfg12-bi-chat/
 ├── plan.md              # This file (/speckit.plan command output)
 ├── research.md          # Phase 0 output (/speckit.plan command)
 ├── data-model.md        # Phase 1 output (/speckit.plan command)
 ├── quickstart.md        # Phase 1 output (/speckit.plan command)
 ├── contracts/           # Phase 1 output (/speckit.plan command)
-└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+└── tasks.md             # Phase 2 output (/speckit.tasks command)
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
 src/
+├── components/
+│   ├── chat/
+│   ├── gallery/
+│   └── common/
+├── hooks/
+├── layouts/
 ├── models/
 ├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+│   └── repositories/
+├── styles/
+└── utils/
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
-
-## Complexity Tracking
-
-> **Fill ONLY if Constitution Check has violations that must be justified**
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+**Structure Decision**: A standard React SPA structure with explicit separation between UI components and services/repositories to satisfy the modularity and storage abstraction constraints.

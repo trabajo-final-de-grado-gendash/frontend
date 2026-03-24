@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useChatStore } from '../../hooks/useChatStore';
 import ChatInput from './ChatInput';
 import ChatMessageComponent from './ChatMessage';
-import { BarChart3 } from '../../layouts/icons';
+
 
 export default function ChatView() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -33,6 +33,8 @@ export default function ChatView() {
   useEffect(() => {
     if (sessionId && sessionId !== activeSessionId) {
       setActiveSession(sessionId);
+    } else if (!sessionId && activeSessionId) {
+      useChatStore.setState({ activeSessionId: null });
     }
   }, [sessionId, activeSessionId, setActiveSession]);
 
@@ -59,9 +61,9 @@ export default function ChatView() {
   // Empty state (no active session)
   if (!activeSession) {
     return (
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col min-h-0">
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
-          <BarChart3 className="h-16 w-16 text-[var(--color-primary)] opacity-60" />
+          <img src="/logo.png" alt="GenDash" className="h-48 w-48 scale-150 object-contain mix-blend-screen opacity-90 drop-shadow-2xl" />
           <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
             GenDash
           </h1>
@@ -76,7 +78,7 @@ export default function ChatView() {
   }
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex flex-1 flex-col min-h-0">
       {/* Error banner */}
       {error && (
         <div className="border-b border-red-800 bg-red-900/30 px-4 py-2 text-sm text-[var(--color-error)]">

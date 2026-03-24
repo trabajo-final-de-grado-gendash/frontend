@@ -118,20 +118,12 @@ export class MockChatService implements IChatService {
     const sessionId = uuidv4();
     const now = new Date();
 
-    const userMsg: ChatMessage = {
-      id: uuidv4(),
-      role: 'user',
-      content: initialMessage,
-      timestamp: now,
-      status: 'success',
-    };
-
     const session: ChatSession = {
       id: sessionId,
       title: initialMessage.slice(0, 40) + (initialMessage.length > 40 ? '…' : ''),
       createdAt: now,
       updatedAt: now,
-      messages: [userMsg],
+      messages: [],
     };
 
     sessions = [...sessions, session];

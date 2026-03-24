@@ -8,9 +8,9 @@ export default function MainLayout() {
       {/* Sidebar */}
       <aside className="flex w-64 flex-col border-r border-[var(--color-border)] bg-[var(--color-bg-sidebar)]">
         {/* Logo */}
-        <div className="flex items-center gap-2 px-5 py-4">
-          <BarChart3 className="h-7 w-7 text-[var(--color-primary)]" />
-          <span className="text-lg font-bold tracking-tight">GenDash</span>
+        <div className="flex items-center gap-3 px-5 py-4">
+          <img src="/logo.png" alt="GenDash" className="h-14 w-14 scale-150 object-contain drop-shadow-lg -ml-1" />
+          <span className="text-xl font-bold tracking-tight z-10">GenDash</span>
         </div>
 
         {/* Navigation */}

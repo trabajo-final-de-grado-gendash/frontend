@@ -44,7 +44,7 @@ export default function ChatInput({ onSubmit, isLoading }: ChatInputProps) {
           placeholder="Escribe tu consulta para generar un gráfico..."
           rows={1}
           disabled={isLoading}
-          className="max-h-[200px] flex-1 resize-none bg-transparent text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none disabled:opacity-50"
+          className="max-h-[200px] flex-1 resize-none bg-transparent py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none disabled:opacity-50"
           id="chat-input"
         />
         <button

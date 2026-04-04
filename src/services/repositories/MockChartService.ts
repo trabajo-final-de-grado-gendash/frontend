@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { IChartService } from '../interfaces';
-import type { ChartAsset, ChartGroup } from '../../models/types';
+import type { IChartService, ChartMetadataUpdate } from '../interfaces';
+import type { ChartAsset, ChartGroup, Plotly } from '../../models/types';
 import { getMockCharts, setMockCharts } from './MockChatService';
 
 // ---------------------------------------------------------------------------
@@ -28,6 +28,56 @@ export class MockChartService implements IChartService {
 
   async getGroups(): Promise<ChartGroup[]> {
     return [...groups];
+  }
+
+  async updateChartMetadata(chartId: string, updates: ChartMetadataUpdate): Promise<ChartAsset> {
+    const allCharts = getMockCharts();
+    const chart = allCharts.find((c) => c.id === chartId);
+
+    if (!chart) throw new Error(`Chart ${chartId} not found`);
+
+    const title = updates.title.trim();
+    const xAxisTitle = updates.xAxisTitle.trim();
+    const yAxisTitle = updates.yAxisTitle.trim();
+
+    if (!title) {
+      throw new Error('El título del gráfico es obligatorio');
+    }
+
+    const layout = { ...(chart.config.layout ?? {}) } as Partial<Plotly.Layout>;
+    const xaxis = (layout.xaxis ?? {}) as Partial<Plotly.LayoutAxis>;
+    const yaxis = (layout.yaxis ?? {}) as Partial<Plotly.LayoutAxis>;
+
+    layout.title = { text: title };
+
+    const nextXAxis = { ...xaxis } as Partial<Plotly.LayoutAxis>;
+    const nextYAxis = { ...yaxis } as Partial<Plotly.LayoutAxis>;
+
+    if (xAxisTitle) {
+      nextXAxis.title = { text: xAxisTitle, standoff: 10 };
+      nextXAxis.automargin = true;
+    } else {
+      delete (nextXAxis as { title?: unknown }).title;
+    }
+
+    if (yAxisTitle) {
+      nextYAxis.title = { text: yAxisTitle, standoff: 10 };
+      nextYAxis.automargin = true;
+    } else {
+      delete (nextYAxis as { title?: unknown }).title;
+    }
+
+    layout.xaxis = nextXAxis;
+    layout.yaxis = nextYAxis;
+
+    chart.title = title;
+    chart.config = {
+      ...chart.config,
+      layout,
+    };
+
+    setMockCharts([...allCharts]);
+    return chart;
   }
 
   async createGroup(name: string, description?: string): Promise<ChartGroup> {

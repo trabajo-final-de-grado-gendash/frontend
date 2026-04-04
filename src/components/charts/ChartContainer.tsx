@@ -8,6 +8,15 @@ interface ChartContainerProps {
   chartId: string;
 }
 
+function extractTitleText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object' && 'text' in value) {
+    const text = (value as { text?: unknown }).text;
+    return typeof text === 'string' ? text : '';
+  }
+  return '';
+}
+
 export default function ChartContainer({ chartId }: ChartContainerProps) {
   const getChartById = useChartStore((s) => s.getChartById);
   const [chart, setChart] = useState<ChartAsset | null>(null);
@@ -52,13 +61,25 @@ export default function ChartContainer({ chartId }: ChartContainerProps) {
   }
 
   try {
+    const xAxisTitle = extractTitleText(
+      (chart.config.layout?.xaxis as { title?: unknown } | undefined)?.title,
+    );
+    const yAxisTitle = extractTitleText(
+      (chart.config.layout?.yaxis as { title?: unknown } | undefined)?.title,
+    );
+
     return (
       <Plot
         data={chart.config.data}
         layout={{
           ...chart.config.layout,
           autosize: true,
-          margin: { t: 40, r: 20, b: 40, l: 50 },
+          margin: {
+            t: 40,
+            r: 20,
+            b: xAxisTitle ? 70 : 40,
+            l: yAxisTitle ? 80 : 50,
+          },
         }}
         config={{
           responsive: true,

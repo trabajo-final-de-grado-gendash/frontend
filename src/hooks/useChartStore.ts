@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { ChartAsset, ChartGroup } from '../models/types';
 import { MockChartService } from '../services/repositories/MockChartService';
-import type { IChartService } from '../services/interfaces';
+import type { IChartService, ChartMetadataUpdate } from '../services/interfaces';
 
 const chartService: IChartService = new MockChartService();
 
@@ -16,6 +16,7 @@ interface ChartState {
   fetchCharts: () => Promise<void>;
   fetchGroups: () => Promise<void>;
   getChartById: (id: string) => Promise<ChartAsset | null>;
+  updateChartMetadata: (chartId: string, updates: ChartMetadataUpdate) => Promise<ChartAsset | null>;
   filterByGroup: (groupId: string | null) => void;
   createGroup: (name: string, description?: string) => Promise<ChartGroup | null>;
   assignChartToGroup: (chartId: string, groupId: string) => Promise<void>;
@@ -53,6 +54,19 @@ export const useChartStore = create<ChartState>((set) => ({
     try {
       return await chartService.getChartById(id);
     } catch {
+      return null;
+    }
+  },
+
+  updateChartMetadata: async (chartId: string, updates: ChartMetadataUpdate) => {
+    set({ isLoading: true, error: null });
+    try {
+      const updatedChart = await chartService.updateChartMetadata(chartId, updates);
+      const charts = await chartService.getAllCharts();
+      set({ charts, isLoading: false });
+      return updatedChart;
+    } catch (e) {
+      set({ error: (e as Error).message, isLoading: false });
       return null;
     }
   },

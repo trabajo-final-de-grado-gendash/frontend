@@ -1,5 +1,11 @@
 import type { ChatSession, ChatMessage, ChartAsset, ChartGroup } from '../models/types';
 
+export interface ChartMetadataUpdate {
+  title: string;
+  xAxisTitle: string;
+  yAxisTitle: string;
+}
+
 /**
  * Chat Service Interface.
  * Abstracts all chat operations. Currently implemented by MockChatService.
@@ -22,6 +28,7 @@ export interface IChartService {
   getChartsByGroup(groupId: string): Promise<ChartAsset[]>;
   getChartById(id: string): Promise<ChartAsset | null>;
   getGroups(): Promise<ChartGroup[]>;
+  updateChartMetadata(chartId: string, updates: ChartMetadataUpdate): Promise<ChartAsset>;
   createGroup(name: string, description?: string): Promise<ChartGroup>;
   assignChartToGroup(chartId: string, groupId: string): Promise<void>;
   removeChartFromGroup(chartId: string): Promise<void>;

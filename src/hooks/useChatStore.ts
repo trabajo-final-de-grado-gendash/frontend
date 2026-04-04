@@ -15,7 +15,7 @@ interface ChatState {
   fetchSessions: () => Promise<void>;
   setActiveSession: (id: string) => Promise<void>;
   createSession: (message: string) => Promise<string>;
-  sendMessage: (message: string) => Promise<ChatMessage | null>;
+  sendMessage: (message: string, sessionId?: string) => Promise<ChatMessage | null>;
   clearError: () => void;
 }
 
@@ -66,16 +66,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  sendMessage: async (message: string) => {
+  sendMessage: async (message: string, sessionId?: string) => {
     const { activeSessionId } = get();
-    if (!activeSessionId) {
+    const targetSessionId = sessionId ?? activeSessionId;
+
+    if (!targetSessionId) {
       set({ error: 'No hay sesión activa' });
       return null;
     }
 
     set({ isLoading: true, error: null });
     try {
-      const assistantMsg = await chatService.sendMessage(activeSessionId, message);
+      const assistantMsg = await chatService.sendMessage(targetSessionId, message);
       // Refresh sessions to get updated messages
       const sessions = await chatService.getSessions();
       set({ sessions, isLoading: false });

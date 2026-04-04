@@ -51,7 +51,7 @@ export default function ChatView() {
       if (newId) {
         navigate(`/chat/${newId}`, { replace: true });
         // Send the actual AI response
-        await sendMessage(message);
+        await sendMessage(message, newId);
       }
     } else {
       await sendMessage(message);

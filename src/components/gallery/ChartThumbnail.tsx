@@ -2,15 +2,32 @@ import { useState } from 'react';
 import Plot from '../charts/PlotlyWrapper';
 import type { ChartAsset } from '../../models/types';
 import GroupManager from './GroupManager';
-import { FolderPlus } from '../../layouts/icons';
+import ChartEditModal from './ChartEditModal';
+import { FolderPlus, Pencil } from '../../layouts/icons';
 
 interface ChartThumbnailProps {
   chart: ChartAsset;
 }
 
+function extractTitleText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object' && 'text' in value) {
+    const text = (value as { text?: unknown }).text;
+    return typeof text === 'string' ? text : '';
+  }
+  return '';
+}
+
 export default function ChartThumbnail({ chart }: ChartThumbnailProps) {
   const [expanded, setExpanded] = useState(false);
   const [showGroupManager, setShowGroupManager] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
+  const xAxisTitle = extractTitleText(
+    (chart.config.layout?.xaxis as { title?: unknown } | undefined)?.title,
+  );
+  const yAxisTitle = extractTitleText(
+    (chart.config.layout?.yaxis as { title?: unknown } | undefined)?.title,
+  );
 
   return (
     <>
@@ -25,7 +42,12 @@ export default function ChartThumbnail({ chart }: ChartThumbnailProps) {
             layout={{
               ...chart.config.layout,
               autosize: true,
-              margin: { t: 30, r: 10, b: 30, l: 30 },
+              margin: {
+                t: 30,
+                r: 10,
+                b: xAxisTitle ? 52 : 30,
+                l: yAxisTitle ? 50 : 30,
+              },
             }}
             config={{ staticPlot: true, responsive: true, displayModeBar: false }}
             useResizeHandler
@@ -42,13 +64,22 @@ export default function ChartThumbnail({ chart }: ChartThumbnailProps) {
               {chart.prompt}
             </p>
           </div>
-          <button
-            onClick={(e) => { e.stopPropagation(); setShowGroupManager(true); }}
-            className="ml-2 rounded-lg p-1.5 text-[var(--color-text-secondary)] opacity-0 transition-all group-hover:opacity-100 hover:bg-[var(--color-bg-input)] hover:text-[var(--color-primary)]"
-            title="Asignar grupo"
-          >
-            <FolderPlus className="h-4 w-4" />
-          </button>
+          <div className="ml-2 flex items-center gap-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowEditor(true); }}
+              className="rounded-lg p-1.5 text-[var(--color-text-secondary)] opacity-0 transition-all group-hover:opacity-100 hover:bg-[var(--color-bg-input)] hover:text-[var(--color-primary)]"
+              title="Editar gráfico"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowGroupManager(true); }}
+              className="rounded-lg p-1.5 text-[var(--color-text-secondary)] opacity-0 transition-all group-hover:opacity-100 hover:bg-[var(--color-bg-input)] hover:text-[var(--color-primary)]"
+              title="Asignar grupo"
+            >
+              <FolderPlus className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -76,7 +107,12 @@ export default function ChartThumbnail({ chart }: ChartThumbnailProps) {
               layout={{
                 ...chart.config.layout,
                 autosize: true,
-                margin: { t: 40, r: 20, b: 40, l: 50 },
+                margin: {
+                  t: 40,
+                  r: 20,
+                  b: xAxisTitle ? 72 : 40,
+                  l: yAxisTitle ? 82 : 50,
+                },
               }}
               config={{ responsive: true }}
               useResizeHandler
@@ -91,6 +127,9 @@ export default function ChartThumbnail({ chart }: ChartThumbnailProps) {
       {/* Group manager modal */}
       {showGroupManager && (
         <GroupManager chart={chart} onClose={() => setShowGroupManager(false)} />
+      )}
+      {showEditor && (
+        <ChartEditModal chart={chart} onClose={() => setShowEditor(false)} />
       )}
     </>
   );

@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import type { ChatSession, ChatMessage } from '../models/types';
-import { MockChatService } from '../services/repositories/MockChatService';
+import { ApiChatService } from '../services/repositories/ApiChatService';
 import type { IChatService } from '../services/interfaces';
 
-const chatService: IChatService = new MockChatService();
+const chatService: IChatService = new ApiChatService();
 
 interface ChatState {
   sessions: ChatSession[];

@@ -44,6 +44,52 @@ function errorMessageFromPayload(payload: unknown, fallback: string): string {
   return fallback;
 }
 
+function fallbackMessageByStatus(status: number): string {
+  if (status === 400) {
+    return 'La solicitud no es valida.';
+  }
+
+  if (status === 401 || status === 403) {
+    return 'No tienes permisos para realizar esta accion.';
+  }
+
+  if (status === 404) {
+    return 'No se encontro el recurso solicitado.';
+  }
+
+  if (status === 422) {
+    return 'La API rechazo la solicitud por datos invalidos.';
+  }
+
+  if (status >= 500) {
+    return `La API respondio con un error interno (${status}).`;
+  }
+
+  return `La API respondio con un error (${status}).`;
+}
+
+function normalizeErrorMessage(message: string, status?: number): string {
+  const lower = message.toLowerCase();
+
+  if (lower.includes('failed to fetch') || lower.includes('networkerror') || lower.includes('load failed')) {
+    return 'No se pudo conectar con la API. Verifica que el backend este encendido y accesible.';
+  }
+
+  if (lower.includes('session not found')) {
+    return 'La sesion solicitada no existe.';
+  }
+
+  if (lower.includes('result not found')) {
+    return 'El resultado solicitado no existe.';
+  }
+
+  if (status === 503) {
+    return 'La API no esta disponible temporalmente. Intenta nuevamente en unos segundos.';
+  }
+
+  return message;
+}
+
 async function parseErrorPayload(response: Response): Promise<unknown> {
   const contentType = response.headers.get('content-type') ?? '';
   if (contentType.includes('application/json')) {
@@ -69,15 +115,23 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch (error) {
+    const baseMessage = error instanceof Error ? error.message : 'Error de red';
+    throw new ApiRequestError(normalizeErrorMessage(baseMessage), 0, null);
+  }
 
   if (!response.ok) {
     const payload = await parseErrorPayload(response);
-    const fallbackMessage = `Backend error (${response.status})`;
-    throw new ApiRequestError(errorMessageFromPayload(payload, fallbackMessage), response.status, payload);
+    const fallbackMessage = fallbackMessageByStatus(response.status);
+    const rawMessage = errorMessageFromPayload(payload, fallbackMessage);
+    const message = normalizeErrorMessage(rawMessage, response.status);
+    throw new ApiRequestError(message, response.status, payload);
   }
 
   if (response.status === 204) {

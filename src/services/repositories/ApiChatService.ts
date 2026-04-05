@@ -45,6 +45,10 @@ interface ResultResponseDto {
   created_at: string;
 }
 
+function toAssistantErrorContent(reason: string): string {
+  return `No pude responder esta consulta.\n\n${reason}`;
+}
+
 function buildSessionTitle(content: string): string {
   const trimmed = content.trim();
   if (!trimmed) return 'Nueva conversacion';
@@ -209,31 +213,50 @@ export class ApiChatService implements IChatService {
       session_id: session.id,
     };
 
-    const response = await apiRequest<GenerateResponseDto>('/api/v1/generate', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    let nextSessionId = session.id;
+    let assistantMessage: ChatMessage;
 
-    const chartAsset = await this.buildChartAsset(response, message);
+    try {
+      const response = await apiRequest<GenerateResponseDto>('/api/v1/generate', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
 
-    const assistantContent = response.message?.trim()
-      ? response.message
-      : chartAsset
-        ? `Aqui tienes la visualizacion: **${chartAsset.title}**`
-        : 'Respuesta generada por el backend.';
+      nextSessionId = response.session_id;
 
-    const assistantMessage: ChatMessage = {
-      id: uuidv4(),
-      role: 'assistant',
-      content: assistantContent,
-      timestamp: new Date(),
-      status: 'success',
-      chartAssetId: chartAsset?.id,
-    };
+      const chartAsset = await this.buildChartAsset(response, message);
+
+      const assistantContent = response.message?.trim()
+        ? response.message
+        : chartAsset
+          ? `Aqui tienes la visualizacion: **${chartAsset.title}**`
+          : 'Respuesta generada por el backend.';
+
+      assistantMessage = {
+        id: uuidv4(),
+        role: 'assistant',
+        content: assistantContent,
+        timestamp: new Date(),
+        status: 'success',
+        chartAssetId: chartAsset?.id,
+      };
+    } catch (error) {
+      const reason = error instanceof Error
+        ? error.message
+        : 'Ocurrio un error inesperado al contactar la API.';
+
+      assistantMessage = {
+        id: uuidv4(),
+        role: 'assistant',
+        content: toAssistantErrorContent(reason),
+        timestamp: new Date(),
+        status: 'error',
+      };
+    }
 
     const nextSession: ChatSession = {
       ...userUpdatedSession,
-      id: response.session_id,
+      id: nextSessionId,
       messages: [...userUpdatedSession.messages, assistantMessage],
       updatedAt: assistantMessage.timestamp,
     };

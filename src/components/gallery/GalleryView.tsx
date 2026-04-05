@@ -2,10 +2,20 @@ import { useEffect } from 'react';
 import { useChartStore } from '../../hooks/useChartStore';
 import ChartThumbnail from './ChartThumbnail';
 import { Loader2, BarChart3 } from '../../layouts/icons';
+import ProminentErrorAlert from '../common/ProminentErrorAlert';
 
 export default function GalleryView() {
-  const { charts, groups, selectedGroupId, isLoading, fetchCharts, fetchGroups, filterByGroup } =
-    useChartStore();
+  const {
+    charts,
+    groups,
+    selectedGroupId,
+    isLoading,
+    error,
+    clearError,
+    fetchCharts,
+    fetchGroups,
+    filterByGroup,
+  } = useChartStore();
 
   useEffect(() => {
     fetchCharts();
@@ -16,8 +26,23 @@ export default function GalleryView() {
     ? charts.filter((c) => c.groupId === selectedGroupId)
     : charts;
 
+  const retryLoad = async () => {
+    clearError();
+    await fetchCharts();
+    await fetchGroups();
+  };
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
+      {error && (
+        <ProminentErrorAlert
+          message={error}
+          onClose={clearError}
+          onRetry={retryLoad}
+          title="No se pudo cargar la galeria"
+        />
+      )}
+
       {/* Header */}
       <header className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4">
         <h1 className="text-lg font-bold">Galería de Gráficos</h1>

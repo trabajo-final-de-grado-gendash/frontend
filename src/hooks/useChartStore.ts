@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import type { ChartAsset, ChartGroup } from '../models/types';
-import { MockChartService } from '../services/repositories/MockChartService';
+import { ApiChartService } from '../services/repositories/ApiChartService';
 import type { IChartService, ChartMetadataUpdate } from '../services/interfaces';
 
-const chartService: IChartService = new MockChartService();
+const chartService: IChartService = new ApiChartService();
 
 interface ChartState {
   charts: ChartAsset[];

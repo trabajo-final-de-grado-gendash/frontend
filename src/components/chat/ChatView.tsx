@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useChatStore } from '../../hooks/useChatStore';
+import type { ChatMessage } from '../../models/types';
 import ChatInput from './ChatInput';
 import ChatMessageComponent from './ChatMessage';
 
@@ -58,6 +59,16 @@ export default function ChatView() {
     }
   };
 
+  const transientErrorMessage: ChatMessage | null = error
+    ? {
+      id: `transient-error-${activeSessionId ?? 'none'}`,
+      role: 'assistant',
+      content: error,
+      timestamp: new Date(),
+      status: 'error',
+    }
+    : null;
+
   // Empty state (no active session)
   if (!activeSession) {
     return (
@@ -71,6 +82,11 @@ export default function ChatView() {
             Escribe una consulta en lenguaje natural para generar gráficos de
             Business Intelligence. Ejemplo: <em>"Mostrar ventas por región"</em>
           </p>
+          {error && (
+            <div className="w-full max-w-xl rounded-2xl border border-red-700/70 bg-red-950/40 px-4 py-3 text-sm text-red-100">
+              {error}
+            </div>
+          )}
         </div>
         <ChatInput onSubmit={handleSubmit} isLoading={isLoading} />
       </div>
@@ -79,25 +95,15 @@ export default function ChatView() {
 
   return (
     <div className="flex flex-1 flex-col min-h-0">
-      {/* Error banner */}
-      {error && (
-        <div className="border-b border-red-800 bg-red-900/30 px-4 py-2 text-sm text-[var(--color-error)]">
-          {error}
-          <button
-            onClick={clearError}
-            className="ml-3 underline hover:no-underline"
-          >
-            Cerrar
-          </button>
-        </div>
-      )}
-
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl py-6">
           {activeSession.messages.map((msg) => (
             <ChatMessageComponent key={msg.id} message={msg} />
           ))}
+          {transientErrorMessage && (
+            <ChatMessageComponent message={transientErrorMessage} />
+          )}
           <div ref={messagesEndRef} />
         </div>
       </div>

@@ -1,6 +1,7 @@
-// @ts-ignore - CJS/ESM interop: factory may export as default or named
+import type { ComponentType } from 'react';
+
 import factoryModule from 'react-plotly.js/factory';
-// @ts-ignore - plotly.js/dist/plotly doesn't have type declarations
+// @ts-expect-error - plotly.js/dist/plotly doesn't have type declarations
 import Plotly from 'plotly.js/dist/plotly';
 
 /**
@@ -8,9 +9,24 @@ import Plotly from 'plotly.js/dist/plotly';
  * This approach works reliably with Vite's ESM handling,
  * avoiding CJS/ESM interop issues with the default export.
  */
-const createPlotlyComponent = typeof factoryModule === 'function'
-  ? factoryModule
-  : (factoryModule as any).default;
+type PlotComponent = ComponentType<Record<string, unknown>>;
+type PlotFactory = (plotly: unknown) => PlotComponent;
+
+type PlotFactoryModule =
+  | PlotFactory
+  | {
+    default?: PlotFactory;
+  };
+
+const factoryCandidate = factoryModule as unknown as PlotFactoryModule;
+
+const createPlotlyComponent: PlotFactory =
+  typeof factoryCandidate === 'function'
+    ? factoryCandidate
+    : factoryCandidate.default ??
+      (() => {
+        throw new Error('No se pudo inicializar react-plotly.js/factory.');
+      });
 
 const Plot = createPlotlyComponent(Plotly);
 

@@ -1,13 +1,23 @@
 import ReactMarkdown from 'react-markdown';
-import type { ChatMessage as ChatMessageType } from '../../models/types';
+import type { ChatMessage as ChatMessageType, QuotedChartRef } from '../../models/types';
 import ChartContainer from '../charts/ChartContainer';
-import { Loader2, AlertCircle } from '../../layouts/icons';
+import { Loader2, AlertCircle, BarChart3 } from '../../layouts/icons';
 
 interface ChatMessageProps {
   message: ChatMessageType;
+  onQuote?: (ref: QuotedChartRef) => void;
 }
 
-export default function ChatMessage({ message }: ChatMessageProps) {
+const CHART_TYPE_LABELS: Record<string, string> = {
+  bar: 'Barra', line: 'Línea', pie: 'Torta', scatter: 'Dispersión',
+  area: 'Área', histogram: 'Histograma', heatmap: 'Mapa de calor', box: 'Box',
+};
+
+function formatChartType(type: string): string {
+  return CHART_TYPE_LABELS[type.toLowerCase()] ?? (type.charAt(0).toUpperCase() + type.slice(1));
+}
+
+export default function ChatMessage({ message, onQuote }: ChatMessageProps) {
   const isUser = message.role === 'user';
 
   if (message.status === 'loading') {
@@ -41,6 +51,19 @@ export default function ChatMessage({ message }: ChatMessageProps) {
             : 'bg-[var(--color-bg-card)] text-[var(--color-text-primary)]'
         }`}
       >
+        {/* Indicador de cita estilo reply — solo en mensajes de usuario */}
+        {isUser && message.quotedChartRef && (
+          <div className="mb-2.5 flex items-center gap-1.5 rounded-lg border-l-2 border-white/50 bg-white/10 px-2.5 py-1.5 text-xs">
+            <BarChart3 className="h-3 w-3 shrink-0 opacity-80" />
+            <span className="font-semibold opacity-80">
+              {formatChartType(message.quotedChartRef.chartType)}
+            </span>
+            <span className="max-w-[180px] truncate opacity-90">
+              {message.quotedChartRef.title}
+            </span>
+          </div>
+        )}
+
         {/* Markdown text content */}
         <div className="prose prose-invert prose-sm max-w-none">
           <ReactMarkdown>{message.content}</ReactMarkdown>
@@ -49,10 +72,11 @@ export default function ChatMessage({ message }: ChatMessageProps) {
         {/* Inline chart if present */}
         {message.chartAssetId && (
           <div className="mt-3 rounded-xl bg-[var(--color-bg-main)] p-2">
-            <ChartContainer chartId={message.chartAssetId} />
+            <ChartContainer chartId={message.chartAssetId} onQuote={onQuote} />
           </div>
         )}
       </div>
     </div>
   );
 }
+

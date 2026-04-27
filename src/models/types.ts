@@ -15,6 +15,8 @@ export interface ChatMessage {
   timestamp: Date;
   chartAssetId?: string;
   status: 'loading' | 'success' | 'error';
+  /** Referencia al gráfico citado al enviar este mensaje (estilo reply). Solo en mensajes de usuario. */
+  quotedChartRef?: { title: string; chartType: string };
 }
 
 export interface ChartAsset {
@@ -36,6 +38,12 @@ export interface ChartGroup {
   id: string;
   name: string;
   description?: string;
+}
+
+export interface QuotedChartRef {
+  resultId: string;
+  title: string;
+  chartType: string;
 }
 
 // Re-export Plotly types for convenience

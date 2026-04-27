@@ -21,6 +21,8 @@ interface ChartState {
   createGroup: (name: string, description?: string) => Promise<ChartGroup | null>;
   assignChartToGroup: (chartId: string, groupId: string) => Promise<void>;
   removeChartFromGroup: (chartId: string) => Promise<void>;
+  /** Actualiza un ChartAsset en local state Y en el store Zustand reactivamente. */
+  directUpdate: (chart: ChartAsset) => void;
   clearError: () => void;
 }
 
@@ -109,4 +111,16 @@ export const useChartStore = create<ChartState>((set) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  directUpdate: (chart: ChartAsset) => {
+    set((state) => {
+      const idx = state.charts.findIndex((c) => c.id === chart.id);
+      if (idx === -1) {
+        return { charts: [...state.charts, chart] };
+      }
+      const next = [...state.charts];
+      next[idx] = chart;
+      return { charts: next };
+    });
+  },
 }));

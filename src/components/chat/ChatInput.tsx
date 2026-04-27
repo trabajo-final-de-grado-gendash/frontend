@@ -1,12 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2 } from '../../layouts/icons';
+import type { QuotedChartRef } from '../../models/types';
+import QuotedChart from '../charts/QuotedChart';
 
 interface ChatInputProps {
   onSubmit: (message: string) => void;
   isLoading: boolean;
+  quotedChart?: QuotedChartRef | null;
+  onClearQuote?: () => void;
 }
 
-export default function ChatInput({ onSubmit, isLoading }: ChatInputProps) {
+export default function ChatInput({ onSubmit, isLoading, quotedChart, onClearQuote }: ChatInputProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -35,13 +39,22 @@ export default function ChatInput({ onSubmit, isLoading }: ChatInputProps) {
 
   return (
     <div className="border-t border-[var(--color-border)] bg-[var(--color-bg-sidebar)] p-4">
+      {/* Chip de cita — aparece justo encima del textarea */}
+      {quotedChart && onClearQuote && (
+        <QuotedChart quotedChart={quotedChart} onClear={onClearQuote} />
+      )}
+
       <div className="mx-auto flex max-w-3xl items-end gap-3 rounded-2xl bg-[var(--color-bg-input)] px-4 py-3">
         <textarea
           ref={textareaRef}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Escribe tu consulta para generar un gráfico..."
+          placeholder={
+            quotedChart
+              ? 'Describí cómo querés modificar el gráfico...'
+              : 'Escribe tu consulta para generar un gráfico...'
+          }
           rows={1}
           disabled={isLoading}
           className="max-h-[200px] flex-1 resize-none bg-transparent py-1.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none disabled:opacity-50"
@@ -50,7 +63,7 @@ export default function ChatInput({ onSubmit, isLoading }: ChatInputProps) {
         <button
           onClick={handleSubmit}
           disabled={!value.trim() || isLoading}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary)] text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary)] text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:cursor-not-allowed disabled:opacity-40"
           id="chat-submit"
         >
           {isLoading ? (

@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useChatStore } from '../../hooks/useChatStore';
-import type { ChatMessage } from '../../models/types';
+import type { ChatMessage, QuotedChartRef } from '../../models/types';
 import ChatInput from './ChatInput';
 import ChatMessageComponent from './ChatMessage';
 
@@ -10,6 +10,9 @@ export default function ChatView() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Estado de cita activa — UI ephemeral, no va al store global
+  const [quotedChart, setQuotedChart] = useState<QuotedChartRef | null>(null);
 
   const {
     sessions,
@@ -20,17 +23,18 @@ export default function ChatView() {
     setActiveSession,
     createSession,
     sendMessage,
+    regenerateChart,
     clearError,
   } = useChatStore();
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
 
-  // Load sessions on mount
+  // Cargar sesiones al montar
   useEffect(() => {
     fetchSessions();
   }, [fetchSessions]);
 
-  // Sync URL param to active session
+  // Sincronizar URL param con sesión activa
   useEffect(() => {
     if (sessionId && sessionId !== activeSessionId) {
       setActiveSession(sessionId);
@@ -39,19 +43,27 @@ export default function ChatView() {
     }
   }, [sessionId, activeSessionId, setActiveSession]);
 
-  // Auto scroll to bottom
+  // Auto-scroll al último mensaje
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeSession?.messages]);
 
   const handleSubmit = async (message: string) => {
     clearError();
+
+    // ── Flujo 2: Edición Generativa (TFG-57) ────────────────────────────────
+    if (quotedChart) {
+      const cited = quotedChart;
+      setQuotedChart(null); // Limpiar chip de inmediato
+      await regenerateChart(cited, message);
+      return;
+    }
+
+    // ── Flujo normal: generar nueva visualización ────────────────────────────
     if (!activeSessionId) {
-      // Create new session
       const newId = await createSession(message);
       if (newId) {
         navigate(`/chat/${newId}`, { replace: true });
-        // Send the actual AI response
         await sendMessage(message, newId);
       }
     } else {
@@ -88,7 +100,12 @@ export default function ChatView() {
             </div>
           )}
         </div>
-        <ChatInput onSubmit={handleSubmit} isLoading={isLoading} />
+        <ChatInput
+          onSubmit={handleSubmit}
+          isLoading={isLoading}
+          quotedChart={quotedChart}
+          onClearQuote={() => setQuotedChart(null)}
+        />
       </div>
     );
   }
@@ -99,7 +116,11 @@ export default function ChatView() {
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl py-6">
           {activeSession.messages.map((msg) => (
-            <ChatMessageComponent key={msg.id} message={msg} />
+            <ChatMessageComponent
+              key={msg.id}
+              message={msg}
+              onQuote={(ref) => setQuotedChart(ref)}
+            />
           ))}
           {transientErrorMessage && (
             <ChatMessageComponent message={transientErrorMessage} />
@@ -108,8 +129,13 @@ export default function ChatView() {
         </div>
       </div>
 
-      {/* Input */}
-      <ChatInput onSubmit={handleSubmit} isLoading={isLoading} />
+      {/* Input con chip de cita */}
+      <ChatInput
+        onSubmit={handleSubmit}
+        isLoading={isLoading}
+        quotedChart={quotedChart}
+        onClearQuote={() => setQuotedChart(null)}
+      />
     </div>
   );
 }

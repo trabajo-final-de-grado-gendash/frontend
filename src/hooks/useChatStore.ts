@@ -64,44 +64,44 @@ export const useChatStore = create<ChatState>((set, get) => ({
   error: null,
 
   fetchSessions: async () => {
-    set({ isLoading: true, error: null });
+    set({ error: null });
     try {
       const sessions = await chatService.getSessions();
-      set({ sessions, isLoading: false });
+      set({ sessions });
     } catch (e) {
-      set({ error: (e as Error).message, isLoading: false });
+      set({ error: (e as Error).message });
     }
   },
 
   setActiveSession: async (id: string) => {
-    set({ isLoading: true, error: null });
+    set({ error: null });
     try {
       const session = await chatService.getSessionById(id);
       if (session) {
-        set({ activeSessionId: id, isLoading: false });
+        set({ activeSessionId: id });
       } else {
-        set({ error: 'Sesión no encontrada', isLoading: false });
+        set({ error: 'Sesión no encontrada' });
       }
     } catch (e) {
-      set({ error: (e as Error).message, isLoading: false });
+      set({ error: (e as Error).message });
     }
   },
 
   createSession: async (message: string) => {
-    set({ isLoading: true, error: null });
+    set({ error: null });
     try {
       const session = await chatService.createSession(message);
       const sessions = await chatService.getSessions();
-      set({ sessions, activeSessionId: session.id, isLoading: false });
+      set({ sessions, activeSessionId: session.id });
       return session.id;
     } catch (e) {
-      set({ error: (e as Error).message, isLoading: false });
+      set({ error: (e as Error).message });
       return '';
     }
   },
 
   sendMessage: async (message: string, sessionId?: string) => {
-    const { activeSessionId } = get();
+    const { activeSessionId, sessions } = get();
     const targetSessionId = sessionId ?? activeSessionId;
 
     if (!targetSessionId) {
@@ -109,11 +109,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return null;
     }
 
-    set({ isLoading: true, error: null });
+    // --- Actualización optimista del mensaje del usuario ---
+    const now = new Date();
+    const optimisticUserMessage: ChatMessage = {
+      id: `optimistic-${uuidv4()}`,
+      role: 'user',
+      content: message,
+      timestamp: now,
+      status: 'success',
+    };
+
+    const updatedSessions = sessions.map(s =>
+      s.id === targetSessionId
+        ? { ...s, messages: [...s.messages, optimisticUserMessage], updatedAt: now }
+        : s
+    );
+
+    set({ sessions: updatedSessions, isLoading: true, error: null });
+    // --------------------------------------------------------
+
     try {
       const assistantMsg = await chatService.sendMessage(targetSessionId, message);
-      const sessions = await chatService.getSessions();
-      set({ sessions, isLoading: false });
+      const latestSessions = await chatService.getSessions();
+      set({ sessions: latestSessions, isLoading: false });
       return assistantMsg;
     } catch (e) {
       set({ error: (e as Error).message, isLoading: false });

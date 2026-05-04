@@ -19,7 +19,7 @@ type GenerateResponseType = 'visualization' | 'clarification' | 'message';
 interface GenerateResponseDto {
   response_type: GenerateResponseType;
   session_id: string;
-  result_id?: string | null;
+  chart_id?: string | null;
   message?: string | null;
   plotly_json?: Record<string, unknown> | null;
   chart_type?: string | null;
@@ -38,7 +38,7 @@ interface SessionHistoryResponseDto {
 }
 
 interface ResultResponseDto {
-  result_id: string;
+  chart_id: string;
   query: string;
   plotly_json: Record<string, unknown>;
   chart_type?: string | null;
@@ -119,9 +119,9 @@ function toHistoryMessages(items: SessionHistoryItemDto[]): ChatMessage[] {
   }));
 }
 
-async function fetchResult(resultId: string): Promise<ResultResponseDto | null> {
+async function fetchChart(chartId: string): Promise<ResultResponseDto | null> {
   try {
-    return await apiRequest<ResultResponseDto>(`/api/v1/results/${resultId}`);
+    return await apiRequest<ResultResponseDto>(`/api/v1/charts/${chartId}`);
   } catch (error) {
     if (error instanceof ApiRequestError && error.status === 404) {
       return null;
@@ -274,24 +274,24 @@ export class ApiChatService implements IChatService {
       return null;
     }
 
-    let resultPayload: ResultResponseDto | null = null;
-    if (response.result_id) {
-      resultPayload = await fetchResult(response.result_id);
+    let chartPayload: ResultResponseDto | null = null;
+    if (response.chart_id) {
+      chartPayload = await fetchChart(response.chart_id);
     }
 
-    const plotlyConfig = toPlotlyConfig(response.plotly_json ?? resultPayload?.plotly_json);
+    const plotlyConfig = toPlotlyConfig(response.plotly_json ?? chartPayload?.plotly_json);
     if (!plotlyConfig) {
       return null;
     }
 
-    const type = response.chart_type ?? resultPayload?.chart_type ?? inferChartType(plotlyConfig);
+    const type = response.chart_type ?? chartPayload?.chart_type ?? inferChartType(plotlyConfig);
     const chart: ChartAsset = {
-      id: response.result_id ?? resultPayload?.result_id ?? uuidv4(),
+      id: response.chart_id ?? chartPayload?.chart_id ?? uuidv4(),
       title: extractChartTitle(plotlyConfig, type),
       type,
       config: plotlyConfig,
-      prompt: resultPayload?.query ?? prompt,
-      createdAt: resultPayload?.created_at ? new Date(resultPayload.created_at) : new Date(),
+      prompt: chartPayload?.query ?? prompt,
+      createdAt: chartPayload?.created_at ? new Date(chartPayload.created_at) : new Date(),
     };
 
     saveChartState(chart);

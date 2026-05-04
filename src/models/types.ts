@@ -41,7 +41,7 @@ export interface ChartGroup {
 }
 
 export interface QuotedChartRef {
-  resultId: string;
+  chartId: string;
   title: string;
   chartType: string;
 }

@@ -46,7 +46,7 @@ export default function ChatView() {
   // Auto-scroll al último mensaje
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeSession?.messages]);
+  }, [activeSession?.messages, isLoading]);
 
   const handleSubmit = async (message: string) => {
     clearError();
@@ -55,6 +55,7 @@ export default function ChatView() {
     if (quotedChart) {
       const cited = quotedChart;
       setQuotedChart(null); // Limpiar chip de inmediato
+      // La regeneración no usa pendingMessage porque agrega un mensaje real localmente
       await regenerateChart(cited, message);
       return;
     }
@@ -124,6 +125,17 @@ export default function ChatView() {
           ))}
           {transientErrorMessage && (
             <ChatMessageComponent message={transientErrorMessage} />
+          )}
+          {isLoading && (
+            <ChatMessageComponent
+              message={{
+                id: 'loading-indicator',
+                role: 'assistant',
+                content: '',
+                timestamp: new Date(),
+                status: 'loading',
+              }}
+            />
           )}
           <div ref={messagesEndRef} />
         </div>

@@ -66,11 +66,7 @@ export default function ChatInput({ onSubmit, isLoading, quotedChart, onClearQuo
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary)] text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:cursor-not-allowed disabled:opacity-40"
           id="chat-submit"
         >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4" />
-          )}
+          <Send className="h-4 w-4" />
         </button>
       </div>
     </div>

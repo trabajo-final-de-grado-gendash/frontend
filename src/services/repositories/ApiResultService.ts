@@ -1,8 +1,8 @@
 /**
  * ApiResultService.ts — Llamadas REST para edición y regeneración de resultados.
  *
- * TFG-56: patchChartMetadata  → PATCH /api/v1/results/{result_id}/metadata
- * TFG-57: postRegenerateChart → POST  /api/v1/results/{result_id}/regenerate
+ * TFG-56: patchChartMetadata  → PATCH /api/v1/charts/{chart_id}/metadata
+ * TFG-57: postRegenerateChart → POST  /api/v1/charts/{chart_id}/regenerate
  */
 import { apiRequest } from './apiClient';
 
@@ -15,17 +15,17 @@ export interface UpdateMetadataPayload {
 }
 
 export interface UpdateMetadataResponse {
-  result_id: string;
+  chart_id: string;
   updated_fields: string[];
   plotly_json: Record<string, unknown>;
 }
 
 export async function patchChartMetadata(
-  resultId: string,
+  chartId: string,
   payload: UpdateMetadataPayload,
 ): Promise<UpdateMetadataResponse> {
   return apiRequest<UpdateMetadataResponse>(
-    `/api/v1/results/${resultId}/metadata`,
+    `/api/v1/charts/${chartId}/metadata`,
     { method: 'PATCH', body: JSON.stringify(payload) },
   );
 }
@@ -34,21 +34,22 @@ export async function patchChartMetadata(
 
 export interface RegeneratePayload {
   prompt: string;
+  session_id?: string;
 }
 
 export interface RegenerateResponse {
-  result_id: string;
+  chart_id: string;
   plotly_json: Record<string, unknown>;
   plotly_code: string;
   chart_type: string;
 }
 
 export async function postRegenerateChart(
-  resultId: string,
+  chartId: string,
   payload: RegeneratePayload,
 ): Promise<RegenerateResponse> {
   return apiRequest<RegenerateResponse>(
-    `/api/v1/results/${resultId}/regenerate`,
+    `/api/v1/charts/${chartId}/regenerate`,
     { method: 'POST', body: JSON.stringify(payload) },
   );
 }

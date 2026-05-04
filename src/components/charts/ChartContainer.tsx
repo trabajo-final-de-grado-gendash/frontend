@@ -114,7 +114,7 @@ export default function ChartContainer({ chartId, onQuote }: ChartContainerProps
             {onQuote && (
               <button
                 onClick={() =>
-                  onQuote({ resultId: chart.id, title: chart.title, chartType: chart.type })
+                  onQuote({ chartId: chart.id, title: chart.title, chartType: chart.type })
                 }
                 className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-bg-sidebar)]/90 text-[var(--color-text-secondary)] shadow-sm backdrop-blur-sm transition-colors hover:text-[var(--color-primary)]"
                 title="Citar en el chat"

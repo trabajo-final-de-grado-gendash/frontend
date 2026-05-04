@@ -167,8 +167,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     saveSessionState(sessionWithUser);
 
     try {
-      // 2. Llamada al backend — devuelve el MISMO result_id
-      const response = await postRegenerateChart(quotedChart.resultId, { prompt });
+      // 2. Llamada al backend — devuelve el MISMO chart_id
+      const response = await postRegenerateChart(quotedChart.chartId, { 
+        prompt, 
+        session_id: activeSessionId 
+      });
 
       // 3. Actualizar el ChartAsset con el mismo id en local state.
       //    Todos los <ChartContainer> que usen ese chartId se re-renderizan.
@@ -176,11 +179,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       // Preservar el prompt original del chart (el que lo generó inicialmente)
       const originalPrompt =
-        existingSession.messages.find((m) => m.chartAssetId === quotedChart.resultId)?.content
+        existingSession.messages.find((m) => m.chartAssetId === quotedChart.chartId)?.content
         ?? prompt;
 
       const updatedChart: ChartAsset = {
-        id: response.result_id,
+        id: response.chart_id,
         title: plotlyConfig
           ? extractChartTitle(plotlyConfig, response.chart_type)
           : `Visualización ${response.chart_type}`,
@@ -193,7 +196,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       useChartStore.getState().directUpdate(updatedChart); // notifica reactivamente a ChartContainer
 
     } catch (e) {
-      // Error visible en el chat (cubre 404 si el result_id no existe en BD)
+      // Error visible en el chat (cubre 404 si el chart_id no existe en BD)
       const reason = e instanceof Error ? e.message : 'Error al regenerar el gráfico.';
 
       const currentSession = getSessionByIdState(activeSessionId) ?? sessionWithUser;

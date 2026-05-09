@@ -1,135 +1,230 @@
 import { useState } from 'react';
-import Plot from '../charts/PlotlyWrapper';
 import type { ChartAsset } from '../../models/types';
-import GroupManager from './GroupManager';
-import ChartEditModal from './ChartEditModal';
-import { FolderPlus, Pencil } from '../../layouts/icons';
+import Plot from '../charts/PlotlyWrapper';
+import { useChartStore } from '../../hooks/useChartStore';
+import { MoreVertical, FolderPlus, Trash2, Loader2, Pencil, X, Maximize2 } from '../../layouts/icons';
+import ChartEditModal from '../charts/ChartEditModal';
 
 interface ChartThumbnailProps {
   chart: ChartAsset;
 }
 
-function extractTitleText(value: unknown): string {
-  if (typeof value === 'string') return value;
-  if (value && typeof value === 'object' && 'text' in value) {
-    const text = (value as { text?: unknown }).text;
-    return typeof text === 'string' ? text : '';
-  }
-  return '';
-}
-
-export default function ChartThumbnail({ chart }: ChartThumbnailProps) {
-  const [expanded, setExpanded] = useState(false);
-  const [showGroupManager, setShowGroupManager] = useState(false);
-  const [showEditor, setShowEditor] = useState(false);
-  const xAxisTitle = extractTitleText(
-    (chart.config.layout?.xaxis as { title?: unknown } | undefined)?.title,
-  );
-  const yAxisTitle = extractTitleText(
-    (chart.config.layout?.yaxis as { title?: unknown } | undefined)?.title,
-  );
+/** Modal que muestra el gráfico a tamaño completo */
+function ChartLightbox({ chart, onClose }: { chart: ChartAsset; onClose: () => void }) {
+  const fontColor = '#111827'; // Siempre oscuro para contrastar con el fondo blanco del gráfico
 
   return (
-    <>
-      {/* Card */}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'var(--color-lightbox-overlay)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
       <div
-        className="group cursor-pointer overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] transition-all hover:border-[var(--color-primary)] hover:shadow-lg hover:shadow-[var(--color-primary)]/10"
+        className="relative w-full max-w-4xl rounded-2xl border border-[var(--color-border)] p-6 shadow-2xl"
+        style={{ backgroundColor: 'var(--color-lightbox-bg)' }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Mini chart preview */}
-        <div className="pointer-events-none h-48 p-2" onClick={() => setExpanded(true)}>
+        <div className="mb-3 flex items-start justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-[var(--color-text-primary)]">
+              {chart.title || 'Visualización'}
+            </h2>
+            <p className="text-xs text-[var(--color-text-secondary)]">
+              {chart.type} • {new Date(chart.createdAt).toLocaleDateString()}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-input)] hover:text-[var(--color-text-primary)] transition-colors"
+            id="lightbox-close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="h-[60vh] w-full rounded-xl bg-white overflow-hidden border border-gray-200">
           <Plot
             data={chart.config.data}
             layout={{
               ...chart.config.layout,
               autosize: true,
-              margin: {
-                t: 30,
-                r: 10,
-                b: xAxisTitle ? 52 : 30,
-                l: yAxisTitle ? 50 : 30,
-              },
+              paper_bgcolor: 'transparent',
+              plot_bgcolor: 'transparent',
+              font: { color: fontColor },
             }}
-            config={{ staticPlot: true, responsive: true, displayModeBar: false }}
-            useResizeHandler
+            config={{ responsive: true, displayModeBar: true }}
             style={{ width: '100%', height: '100%' }}
           />
         </div>
-        {/* Info */}
-        <div className="flex items-center justify-between border-t border-[var(--color-border)] px-4 py-3">
-          <div className="min-w-0 flex-1" onClick={() => setExpanded(true)}>
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] truncate">
-              {chart.title}
-            </h3>
-            <p className="mt-1 text-xs text-[var(--color-text-secondary)] truncate">
-              {chart.prompt}
-            </p>
+      </div>
+    </div>
+  );
+}
+
+export default function ChartThumbnail({ chart }: ChartThumbnailProps) {
+  const { projects, assignChartToProject, removeChartFromProject } = useChartStore();
+  const fontColor = '#111827'; // Siempre oscuro
+  
+  const [showMenu, setShowMenu] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showLightbox, setShowLightbox] = useState(false);
+
+  const handleAssign = async (projectId: string) => {
+    setIsProcessing(true);
+    await assignChartToProject(chart.id, projectId);
+    setIsProcessing(false);
+    setShowMenu(false);
+  };
+
+  const handleRemove = async () => {
+    if (!chart.projectId) return;
+    setIsProcessing(true);
+    await removeChartFromProject(chart.id, chart.projectId);
+    setIsProcessing(false);
+    setShowMenu(false);
+  };
+
+  const handleEditClick = () => {
+    setShowMenu(false);
+    setShowEditModal(true);
+  };
+
+  return (
+    <>
+      <div className="group relative flex flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-sidebar)] p-4 shadow-sm transition-all hover:border-[var(--color-primary)] hover:shadow-md">
+        {/* Chart Preview — clickable to expand */}
+        <div
+          className="relative mb-3 h-40 w-full cursor-pointer overflow-hidden rounded-xl bg-white border border-gray-200 shadow-inner"
+          onClick={() => setShowLightbox(true)}
+          title="Click para ampliar"
+        >
+          <Plot
+            data={chart.config.data}
+            layout={{
+              ...chart.config.layout,
+              autosize: true,
+              paper_bgcolor: 'transparent',
+              plot_bgcolor: 'transparent',
+              font: { color: fontColor },
+              margin: { t: 20, r: 10, b: 52, l: 52 },
+              showlegend: false,
+              title: undefined,
+              xaxis: {
+                ...chart.config.layout?.xaxis,
+                showticklabels: true,
+                tickfont: { size: 9, color: fontColor },
+                titlefont: { size: 9, color: fontColor },
+              },
+              yaxis: {
+                ...chart.config.layout?.yaxis,
+                showticklabels: true,
+                tickfont: { size: 9, color: fontColor },
+                titlefont: { size: 9, color: fontColor },
+              },
+            }}
+            config={{ staticPlot: true, responsive: true }}
+            style={{ width: '100%', height: '100%' }}
+          />
+          {/* Expand hint on hover */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/20 rounded-xl transition-opacity pointer-events-none">
+            <Maximize2 className="h-6 w-6 text-white drop-shadow" />
           </div>
-          <div className="ml-2 flex items-center gap-1">
+        </div>
+
+        {/* Info */}
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <h3 className="truncate text-sm font-semibold text-[var(--color-text-primary)]">
+              {chart.title || 'Sin título'}
+            </h3>
+            <p className="truncate text-xs text-[var(--color-text-secondary)]">
+              {chart.type} • {new Date(chart.createdAt).toLocaleDateString()}
+            </p>
+            {chart.projectId && (
+              <p className="mt-0.5 truncate text-[10px] text-[var(--color-primary)] font-medium">
+                {projects.find(p => p.id === chart.projectId)?.name}
+              </p>
+            )}
+          </div>
+
+          {/* Menu Toggle */}
+          <div className="relative">
             <button
-              onClick={(e) => { e.stopPropagation(); setShowEditor(true); }}
-              className="rounded-lg p-1.5 text-[var(--color-text-secondary)] opacity-0 transition-all group-hover:opacity-100 hover:bg-[var(--color-bg-input)] hover:text-[var(--color-primary)]"
-              title="Editar gráfico"
+              onClick={() => setShowMenu(!showMenu)}
+              disabled={isProcessing}
+              className="rounded-lg p-1 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-input)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
+              id={`chart-menu-${chart.id}`}
             >
-              <Pencil className="h-4 w-4" />
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
             </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowGroupManager(true); }}
-              className="rounded-lg p-1.5 text-[var(--color-text-secondary)] opacity-0 transition-all group-hover:opacity-100 hover:bg-[var(--color-bg-input)] hover:text-[var(--color-primary)]"
-              title="Asignar grupo"
-            >
-              <FolderPlus className="h-4 w-4" />
-            </button>
+
+            {showMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+                <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-sidebar)] p-1 shadow-xl">
+                  {/* Editar título */}
+                  <button
+                    onClick={handleEditClick}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg-input)]"
+                    id={`chart-edit-${chart.id}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar título
+                  </button>
+
+                  <div className="my-1 border-t border-[var(--color-border)]" />
+
+                  <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">
+                    Mover a proyecto
+                  </div>
+                  <div className="max-h-32 overflow-y-auto">
+                    {projects.length === 0 ? (
+                      <p className="px-2 py-1.5 text-[10px] italic text-[var(--color-text-secondary)]">
+                        Sin proyectos — creá uno arriba
+                      </p>
+                    ) : (
+                      projects.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => handleAssign(p.id)}
+                          className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-[var(--color-bg-input)] ${
+                            chart.projectId === p.id ? 'text-[var(--color-primary)] font-medium' : 'text-[var(--color-text-primary)]'
+                          }`}
+                        >
+                          <FolderPlus className="h-3.5 w-3.5" />
+                          {p.name}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  {chart.projectId && (
+                    <div className="mt-1 border-t border-[var(--color-border)] pt-1">
+                      <button
+                        onClick={handleRemove}
+                        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-red-400 transition-colors hover:bg-red-400/10"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Quitar del proyecto
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Expanded modal overlay */}
-      {expanded && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => setExpanded(false)}
-        >
-          <div
-            className="w-full max-w-3xl rounded-2xl bg-[var(--color-bg-card)] p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold">{chart.title}</h2>
-              <button
-                onClick={() => setExpanded(false)}
-                className="text-[var(--color-text-secondary)] hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-            <Plot
-              data={chart.config.data}
-              layout={{
-                ...chart.config.layout,
-                autosize: true,
-                margin: {
-                  t: 40,
-                  r: 20,
-                  b: xAxisTitle ? 72 : 40,
-                  l: yAxisTitle ? 82 : 50,
-                },
-              }}
-              config={{ responsive: true }}
-              useResizeHandler
-              style={{ width: '100%', height: '450px' }}
-            />
-            <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
-              Prompt: "{chart.prompt}"
-            </p>
-          </div>
-        </div>
-      )}
-      {/* Group manager modal */}
-      {showGroupManager && (
-        <GroupManager chart={chart} onClose={() => setShowGroupManager(false)} />
-      )}
-      {showEditor && (
-        <ChartEditModal chart={chart} onClose={() => setShowEditor(false)} />
+      {/* Lightbox */}
+      {showLightbox && <ChartLightbox chart={chart} onClose={() => setShowLightbox(false)} />}
+
+      {/* Edit modal */}
+      {showEditModal && (
+        <ChartEditModal
+          chart={chart}
+          onClose={() => setShowEditModal(false)}
+          onSaved={() => setShowEditModal(false)}
+        />
       )}
     </>
   );

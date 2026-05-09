@@ -26,7 +26,7 @@ export interface ChartAsset {
   config: PlotlyChartConfig;
   prompt: string;
   createdAt: Date;
-  groupId?: string;
+  projectId?: string;
 }
 
 export interface PlotlyChartConfig {
@@ -34,7 +34,7 @@ export interface PlotlyChartConfig {
   layout?: Partial<Plotly.Layout>;
 }
 
-export interface ChartGroup {
+export interface Project {
   id: string;
   name: string;
   description?: string;

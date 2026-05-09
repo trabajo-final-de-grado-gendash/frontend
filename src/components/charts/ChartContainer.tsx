@@ -21,6 +21,7 @@ function extractTitleText(value: unknown): string {
 
 export default function ChartContainer({ chartId, onQuote }: ChartContainerProps) {
   const getChartById = useChartStore((s) => s.getChartById);
+  const fontColor = '#111827'; // Siempre oscuro
 
   // Suscripción reactiva: cuando directUpdate() actualiza el store,
   // este selector dispara un re-render automáticamente.
@@ -34,7 +35,7 @@ export default function ChartContainer({ chartId, onQuote }: ChartContainerProps
   // El chart efectivo: prefiere el del store (reactivo) sobre el cargado async
   const chart = chartFromStore ?? asyncChart;
 
-  // Carga inicial desde ApiLocalState (para charts que aún no están en useChartStore.charts)
+  // Carga inicial desde la API (para charts que aún no están en useChartStore.charts)
   useEffect(() => {
     if (chartFromStore) {
       // Ya está en el store, no hace falta fetch async
@@ -126,22 +127,37 @@ export default function ChartContainer({ chartId, onQuote }: ChartContainerProps
           </div>
 
           {/* Gráfico */}
-          <Plot
-            data={chart.config.data}
-            layout={{
-              ...chart.config.layout,
-              autosize: true,
-              margin: {
-                t: 40,
-                r: 20,
-                b: xAxisTitle ? 70 : 40,
-                l: yAxisTitle ? 80 : 50,
-              },
-            }}
-            config={{ responsive: true, displayModeBar: false }}
-            useResizeHandler
-            style={{ width: '100%', height: '300px' }}
-          />
+          <div className="rounded-xl bg-white p-2 shadow-inner border border-gray-200 overflow-hidden relative">
+            <Plot
+              data={chart.config.data}
+              layout={{
+                ...chart.config.layout,
+                autosize: true,
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                font: { color: fontColor },
+                xaxis: {
+                  ...chart.config.layout?.xaxis,
+                  tickfont: { color: fontColor },
+                  titlefont: { color: fontColor },
+                },
+                yaxis: {
+                  ...chart.config.layout?.yaxis,
+                  tickfont: { color: fontColor },
+                  titlefont: { color: fontColor },
+                },
+                margin: {
+                  t: 40,
+                  r: 20,
+                  b: xAxisTitle ? 70 : 40,
+                  l: yAxisTitle ? 80 : 50,
+                },
+              }}
+              config={{ responsive: true, displayModeBar: false }}
+              useResizeHandler
+              style={{ width: '100%', height: '300px' }}
+            />
+          </div>
         </div>
 
         {/* Modal de edición */}

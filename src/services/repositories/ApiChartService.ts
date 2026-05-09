@@ -1,138 +1,143 @@
-import { v4 as uuidv4 } from 'uuid';
 import type { IChartService, ChartMetadataUpdate } from '../interfaces';
-import type { ChartAsset, ChartGroup, Plotly } from '../../models/types';
-import {
-  getChartByIdState,
-  getChartsState,
-  getGroupsState,
-  saveChartsState,
-  saveGroupsState,
-} from './ApiLocalState';
+import type { ChartAsset, Project, Plotly, PlotlyChartConfig } from '../../models/types';
+import { apiRequest } from './apiClient';
+
+interface ChartResponseDto {
+  chart_id: string;
+  query: string;
+  sql: string;
+  plotly_json: Record<string, unknown>;
+  plotly_code?: string;
+  chart_type?: string;
+  project_id?: string;
+  created_at: string;
+}
+
+interface ProjectResponseDto {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ProjectListResponseDto {
+  projects: ProjectResponseDto[];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function toPlotlyConfig(value: unknown): PlotlyChartConfig | null {
+  if (!isRecord(value)) return null;
+  const data = value.data;
+  if (!Array.isArray(data)) return null;
+  const layout = isRecord(value.layout) ? (value.layout as Partial<Plotly.Layout>) : undefined;
+  return { data: data as Plotly.Data[], layout };
+}
+
+function extractChartTitle(config: PlotlyChartConfig, fallbackType: string): string {
+  const title = (config.layout as { title?: unknown } | undefined)?.title;
+  if (typeof title === 'string' && title.trim()) return title;
+  if (title && typeof title === 'object' && 'text' in title) {
+    const text = (title as { text?: unknown }).text;
+    if (typeof text === 'string' && text.trim()) return text;
+  }
+  return fallbackType ? `Visualización ${fallbackType}` : 'Visualización generada';
+}
+
+function mapDtoToAsset(dto: ChartResponseDto): ChartAsset {
+  const config = toPlotlyConfig(dto.plotly_json) || { data: [] };
+  return {
+    id: dto.chart_id,
+    title: extractChartTitle(config, dto.chart_type || 'Gráfico'),
+    type: dto.chart_type || 'bar',
+    config,
+    prompt: dto.query,
+    createdAt: new Date(dto.created_at),
+    projectId: dto.project_id,
+  };
+}
 
 export class ApiChartService implements IChartService {
   async getAllCharts(): Promise<ChartAsset[]> {
-    return getChartsState().sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const response = await apiRequest<ChartResponseDto[]>('/api/v1/charts');
+    return response.map(mapDtoToAsset);
   }
 
-  async getChartsByGroup(groupId: string): Promise<ChartAsset[]> {
-    return getChartsState().filter((chart) => chart.groupId === groupId);
+  async getChartsByProject(projectId: string): Promise<ChartAsset[]> {
+    const response = await apiRequest<ChartResponseDto[]>(`/api/v1/projects/${projectId}/charts`);
+    return response.map(mapDtoToAsset);
   }
 
   async getChartById(id: string): Promise<ChartAsset | null> {
-    return getChartByIdState(id);
+    try {
+      const response = await apiRequest<ChartResponseDto>(`/api/v1/charts/${id}`);
+      return mapDtoToAsset(response);
+    } catch {
+      return null;
+    }
   }
 
-  async getGroups(): Promise<ChartGroup[]> {
-    return getGroupsState();
+  async getProjects(): Promise<Project[]> {
+    const response = await apiRequest<ProjectListResponseDto>('/api/v1/projects');
+    return response.projects.map((p) => ({
+      id: p.id,
+      name: p.name,
+    }));
   }
 
   async updateChartMetadata(chartId: string, updates: ChartMetadataUpdate): Promise<ChartAsset> {
-    const allCharts = getChartsState();
-    const chartIndex = allCharts.findIndex((chart) => chart.id === chartId);
-
-    if (chartIndex === -1) {
-      throw new Error(`Chart ${chartId} not found`);
-    }
-
-    const title = updates.title.trim();
-    const xAxisTitle = updates.xAxisTitle.trim();
-    const yAxisTitle = updates.yAxisTitle.trim();
-
-    if (!title) {
-      throw new Error('El titulo del grafico es obligatorio');
-    }
-
-    const chart = allCharts[chartIndex];
-    const layout = { ...(chart.config.layout ?? {}) } as Partial<Plotly.Layout>;
-    const xaxis = (layout.xaxis ?? {}) as Partial<Plotly.LayoutAxis>;
-    const yaxis = (layout.yaxis ?? {}) as Partial<Plotly.LayoutAxis>;
-
-    layout.title = { text: title };
-
-    const nextXAxis = { ...xaxis } as Partial<Plotly.LayoutAxis>;
-    const nextYAxis = { ...yaxis } as Partial<Plotly.LayoutAxis>;
-
-    if (xAxisTitle) {
-      nextXAxis.title = { text: xAxisTitle, standoff: 10 };
-      nextXAxis.automargin = true;
-    } else {
-      delete (nextXAxis as { title?: unknown }).title;
-    }
-
-    if (yAxisTitle) {
-      nextYAxis.title = { text: yAxisTitle, standoff: 10 };
-      nextYAxis.automargin = true;
-    } else {
-      delete (nextYAxis as { title?: unknown }).title;
-    }
-
-    layout.xaxis = nextXAxis;
-    layout.yaxis = nextYAxis;
-
-    const updatedChart: ChartAsset = {
-      ...chart,
-      title,
-      config: {
-        ...chart.config,
-        layout,
-      },
+    // El backend ya tiene un endpoint para esto: PATCH /api/v1/charts/{id}/metadata
+    // Este método lo invocará el store o el componente directamente.
+    // Aquí implementamos la lógica para cumplir con la interfaz.
+    const payload = {
+      title: updates.title,
+      xaxis_title: updates.xAxisTitle,
+      yaxis_title: updates.yAxisTitle,
     };
+    
+    await apiRequest<{ chart_id: string; plotly_json: Record<string, unknown> }>(
+      `/api/v1/charts/${chartId}/metadata`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }
+    );
 
-    const nextCharts = [...allCharts];
-    nextCharts[chartIndex] = updatedChart;
-    saveChartsState(nextCharts);
-
-    return updatedChart;
+    // Obtenemos el chart completo de nuevo para asegurar consistencia
+    const updated = await this.getChartById(chartId);
+    if (!updated) throw new Error('Failed to retrieve updated chart');
+    return updated;
   }
 
-  async createGroup(name: string, description?: string): Promise<ChartGroup> {
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      throw new Error('El nombre del grupo es obligatorio');
-    }
-
-    const group: ChartGroup = {
-      id: uuidv4(),
-      name: trimmedName,
-      description: description?.trim() || undefined,
+  async createProject(name: string, description?: string): Promise<Project> {
+    const response = await apiRequest<ProjectResponseDto>('/api/v1/projects', {
+      method: 'POST',
+      body: JSON.stringify({ name, description }),
+    });
+    return {
+      id: response.id,
+      name: response.name,
+      description: undefined, // El DTO backend no tiene descripción en la respuesta simple
     };
-
-    const groups = getGroupsState();
-    saveGroupsState([...groups, group]);
-    return group;
   }
 
-  async assignChartToGroup(chartId: string, groupId: string): Promise<void> {
-    const charts = getChartsState();
-    const index = charts.findIndex((chart) => chart.id === chartId);
-
-    if (index === -1) {
-      throw new Error(`Chart ${chartId} not found`);
-    }
-
-    const nextCharts = [...charts];
-    nextCharts[index] = {
-      ...nextCharts[index],
-      groupId,
-    };
-
-    saveChartsState(nextCharts);
+  async assignChartToProject(chartId: string, projectId: string): Promise<void> {
+    await apiRequest(`/api/v1/projects/${projectId}/charts/${chartId}`, {
+      method: 'POST',
+    });
   }
 
-  async removeChartFromGroup(chartId: string): Promise<void> {
-    const charts = getChartsState();
-    const index = charts.findIndex((chart) => chart.id === chartId);
+  async removeChartFromProject(chartId: string, projectId: string): Promise<void> {
+    await apiRequest(`/api/v1/projects/${projectId}/charts/${chartId}`, {
+      method: 'DELETE',
+    });
+  }
 
-    if (index === -1) {
-      throw new Error(`Chart ${chartId} not found`);
-    }
-
-    const nextCharts = [...charts];
-    nextCharts[index] = {
-      ...nextCharts[index],
-      groupId: undefined,
-    };
-
-    saveChartsState(nextCharts);
+  async deleteProject(projectId: string): Promise<void> {
+    await apiRequest(`/api/v1/projects/${projectId}`, {
+      method: 'DELETE',
+    });
   }
 }

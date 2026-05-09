@@ -4,11 +4,6 @@ import type { ChatSession, ChatMessage, ChartAsset, QuotedChartRef, Plotly, Plot
 import { ApiChatService } from '../services/repositories/ApiChatService';
 import type { IChatService } from '../services/interfaces';
 import { postRegenerateChart } from '../services/repositories/ApiResultService';
-import {
-  getSessionByIdState,
-  saveSessionState,
-  saveChartState,
-} from '../services/repositories/ApiLocalState';
 import { useChartStore } from './useChartStore';
 
 
@@ -74,34 +69,48 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   setActiveSession: async (id: string) => {
-    set({ error: null });
+    set({ activeSessionId: id, error: null, isLoading: true });
     try {
       const session = await chatService.getSessionById(id);
       if (session) {
-        set({ activeSessionId: id });
+        set((state) => ({
+          sessions: state.sessions.map(s => s.id === id ? session : s),
+          isLoading: false
+        }));
       } else {
-        set({ error: 'Sesión no encontrada' });
+        // Sesión nueva: existe localmente pero aún no fue persistida en el backend
+        // (lazy creation — el backend la creará al primer generate)
+        const localSession = get().sessions.find(s => s.id === id);
+        if (localSession) {
+          set({ isLoading: false });
+        } else {
+          set({ error: 'Sesión no encontrada', isLoading: false });
+        }
       }
     } catch (e) {
-      set({ error: (e as Error).message });
+      // Si es un 404, verificar si existe localmente
+      const localSession = get().sessions.find(s => s.id === id);
+      if (localSession) {
+        set({ isLoading: false });
+      } else {
+        set({ error: (e as Error).message, isLoading: false });
+      }
     }
   },
 
-  createSession: async (message: string) => {
-    set({ error: null });
-    try {
-      const session = await chatService.createSession(message);
-      const sessions = await chatService.getSessions();
-      set({ sessions, activeSessionId: session.id });
-      return session.id;
-    } catch (e) {
-      set({ error: (e as Error).message });
-      return '';
-    }
+  createSession: async (_message?: string) => {
+    // Generación puramente local (lazy)
+    const session = await chatService.createSession();
+    set((state) => ({
+      sessions: [session, ...state.sessions],
+      activeSessionId: session.id,
+      isLoading: false
+    }));
+    return session.id;
   },
 
   sendMessage: async (message: string, sessionId?: string) => {
-    const { activeSessionId, sessions } = get();
+    const { activeSessionId } = get();
     const targetSessionId = sessionId ?? activeSessionId;
 
     if (!targetSessionId) {
@@ -119,38 +128,36 @@ export const useChatStore = create<ChatState>((set, get) => ({
       status: 'success',
     };
 
-    const updatedSessions = sessions.map(s =>
-      s.id === targetSessionId
-        ? { ...s, messages: [...s.messages, optimisticUserMessage], updatedAt: now }
-        : s
-    );
-
-    set({ sessions: updatedSessions, isLoading: true, error: null });
+    set((state) => ({
+      sessions: state.sessions.map(s =>
+        s.id === targetSessionId
+          ? { ...s, messages: [...s.messages, optimisticUserMessage], updatedAt: now }
+          : s
+      ),
+      isLoading: true,
+      error: null
+    }));
     // --------------------------------------------------------
 
     try {
-      const assistantMsg = await chatService.sendMessage(targetSessionId, message);
-      const latestSessions = await chatService.getSessions();
-      set({ sessions: latestSessions, isLoading: false });
-      return assistantMsg;
+      await chatService.sendMessage(targetSessionId, message);
+      // Refrescamos la sesión completa desde el backend para tener el historial oficial
+      const updatedSession = await chatService.getSessionById(targetSessionId);
+      if (updatedSession) {
+        set((state) => ({
+          sessions: state.sessions.map(s => s.id === targetSessionId ? updatedSession : s),
+          isLoading: false
+        }));
+        return updatedSession.messages.at(-1) || null;
+      }
+      set({ isLoading: false });
+      return null;
     } catch (e) {
       set({ error: (e as Error).message, isLoading: false });
       return null;
     }
   },
 
-  /**
-   * El backend devuelve el MISMO result_id con el plotly_json actualizado,
-   * por lo que actualizar el ChartAsset en local state con ese id hace que
-   * TODOS los mensajes del chat que referencien ese chartAssetId se refresquen
-   * automáticamente. No se crea un nuevo mensaje de assistant con gráfico.
-   *
-   * Flujo:
-   *  1. Agrega mensaje del usuario con quotedChartRef (indicador estilo reply).
-   *  2. Llama a POST /regenerate.
-   *  3. Actualiza el ChartAsset existente en local state (mismo id).
-   *  4. Refresca el store — el gráfico en el chat original se actualiza solo.
-   */
   regenerateChart: async (quotedChart: QuotedChartRef, prompt: string) => {
     const { activeSessionId } = get();
     if (!activeSessionId) {
@@ -160,46 +167,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     set({ isLoading: true, error: null });
 
-    const now = new Date();
-    const existingSession = getSessionByIdState(activeSessionId);
-    if (!existingSession) {
-      set({ error: 'Sesión no encontrada', isLoading: false });
-      return;
-    }
-
-    // 1. Mensaje del usuario con referencia al gráfico citado
-    const userMessage: ChatMessage = {
-      id: uuidv4(),
-      role: 'user',
-      content: prompt,
-      timestamp: now,
-      status: 'success',
-      quotedChartRef: { title: quotedChart.title, chartType: quotedChart.chartType },
-    };
-
-    const sessionWithUser: ChatSession = {
-      ...existingSession,
-      messages: [...existingSession.messages, userMessage],
-      updatedAt: now,
-    };
-    saveSessionState(sessionWithUser);
-
     try {
-      // 2. Llamada al backend — devuelve el MISMO chart_id
+      // 1. Llamada al backend — devuelve el MISMO chart_id actualizado
       const response = await postRegenerateChart(quotedChart.chartId, { 
         prompt, 
         session_id: activeSessionId 
       });
 
-      // 3. Actualizar el ChartAsset con el mismo id en local state.
-      //    Todos los <ChartContainer> que usen ese chartId se re-renderizan.
+      // 2. Actualizar el ChartAsset en el store PRIMERO (in-place)
+      //    Así el chart del mensaje original se actualiza visualmente de inmediato
       const plotlyConfig = toPlotlyConfig(response.plotly_json);
-
-      // Preservar el prompt original del chart (el que lo generó inicialmente)
-      const originalPrompt =
-        existingSession.messages.find((m) => m.chartAssetId === quotedChart.chartId)?.content
-        ?? prompt;
-
       const updatedChart: ChartAsset = {
         id: response.chart_id,
         title: plotlyConfig
@@ -207,34 +184,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
           : `Visualización ${response.chart_type}`,
         type: response.chart_type ?? quotedChart.chartType,
         config: plotlyConfig ?? { data: [] },
-        prompt: originalPrompt,
+        prompt: prompt,
         createdAt: new Date(),
       };
-      saveChartState(updatedChart);               // persiste en ApiLocalState
-      useChartStore.getState().directUpdate(updatedChart); // notifica reactivamente a ChartContainer
+      useChartStore.getState().directUpdate(updatedChart);
+
+      // 3. Refrescar la sesión DESPUÉS — trae el nuevo mensaje de texto descriptivo
+      //    (el backend ya no guarda chart_id en el mensaje del regenerate)
+      const updatedSession = await chatService.getSessionById(activeSessionId);
+      if (updatedSession) {
+        set((state) => ({
+          sessions: state.sessions.map(s => s.id === activeSessionId ? updatedSession : s),
+        }));
+      }
 
     } catch (e) {
-      // Error visible en el chat (cubre 404 si el chart_id no existe en BD)
-      const reason = e instanceof Error ? e.message : 'Error al regenerar el gráfico.';
-
-      const currentSession = getSessionByIdState(activeSessionId) ?? sessionWithUser;
-      const errorMsg: ChatMessage = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: reason,
-        timestamp: new Date(),
-        status: 'error',
-      };
-      saveSessionState({
-        ...currentSession,
-        messages: [...currentSession.messages, errorMsg],
-        updatedAt: errorMsg.timestamp,
-      });
+      set({ error: e instanceof Error ? e.message : 'Error al regenerar el gráfico.' });
+    } finally {
+      set({ isLoading: false });
     }
-
-    // Refrescar el store con el estado actualizado de local state
-    const sessions = await chatService.getSessions();
-    set({ sessions, isLoading: false });
   },
 
   clearError: () => set({ error: null }),

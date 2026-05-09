@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import type { ChartAsset, Plotly } from '../../models/types';
 import { patchChartMetadata } from '../../services/repositories/ApiResultService';
-import { saveChartState } from '../../services/repositories/ApiLocalState';
+import { useChartStore } from '../../hooks/useChartStore';
 import { X, Loader2 } from '../../layouts/icons';
 
 interface ChartEditModalProps {
   chart: ChartAsset;
   onClose: () => void;
-  /** Se llama cuando el PATCH fue exitoso y el ChartAsset ya está actualizado en local state. */
+  /** Se llama cuando el PATCH fue exitoso y el ChartAsset ya está actualizado en el store. */
   onSaved: () => void;
 }
 
@@ -25,6 +25,7 @@ function extractAxisTitle(value: unknown): string {
 
 export default function ChartEditModal({ chart, onClose, onSaved }: ChartEditModalProps) {
   const isPieChart = PIE_TYPES.has(chart.type.toLowerCase());
+  const directUpdate = useChartStore((s) => s.directUpdate);
 
   const [title, setTitle] = useState(chart.title);
   const [xAxisTitle, setXAxisTitle] = useState(
@@ -62,7 +63,9 @@ export default function ChartEditModal({ chart, onClose, onSaved }: ChartEditMod
         title: trimmedTitle,
         config: { ...chart.config, layout: updatedLayout },
       };
-      saveChartState(updatedChart);
+      
+      // Actualizamos el store Zustand para que la UI se entere del cambio
+      directUpdate(updatedChart);
 
       onSaved();
       onClose();

@@ -18,6 +18,7 @@ export default function ChatView() {
     sessions,
     activeSessionId,
     isLoading,
+    isGenerating,
     error,
     fetchSessions,
     setActiveSession,
@@ -38,8 +39,6 @@ export default function ChatView() {
   useEffect(() => {
     if (sessionId && sessionId !== activeSessionId) {
       setActiveSession(sessionId);
-    } else if (!sessionId && activeSessionId) {
-      useChatStore.setState({ activeSessionId: null });
     }
   }, [sessionId, activeSessionId, setActiveSession]);
 
@@ -87,7 +86,7 @@ export default function ChatView() {
     return (
       <div className="flex flex-1 flex-col min-h-0">
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
-          <img src="/logo.png" alt="GenDash" className="h-48 w-48 scale-150 object-contain mix-blend-screen opacity-90 drop-shadow-2xl" />
+          <img src="/logo.png" alt="GenDash" className="h-48 w-48 scale-150 object-contain empty-state-logo" />
           <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
             GenDash
           </h1>
@@ -126,7 +125,7 @@ export default function ChatView() {
           {transientErrorMessage && (
             <ChatMessageComponent message={transientErrorMessage} />
           )}
-          {isLoading && (
+          {isGenerating && (
             <ChatMessageComponent
               message={{
                 id: 'loading-indicator',

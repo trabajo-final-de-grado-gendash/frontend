@@ -41,6 +41,7 @@ interface ChatState {
   sessions: ChatSession[];
   activeSessionId: string | null;
   isLoading: boolean;
+  isGenerating: boolean;
   error: string | null;
 
   // Actions
@@ -56,6 +57,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sessions: [],
   activeSessionId: null,
   isLoading: false,
+  isGenerating: false,
   error: null,
 
   fetchSessions: async () => {
@@ -69,7 +71,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   setActiveSession: async (id: string) => {
-    set({ activeSessionId: id, error: null, isLoading: true });
+    set({ activeSessionId: id, error: null });
+    // No ponemos isLoading: true aquí para evitar el parpadeo de la burbuja "Generando..."
+    // al entrar a un chat viejo.
     try {
       const session = await chatService.getSessionById(id);
       if (session) {
@@ -135,6 +139,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           : s
       ),
       isLoading: true,
+      isGenerating: true,
       error: null
     }));
     // --------------------------------------------------------
@@ -146,14 +151,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (updatedSession) {
         set((state) => ({
           sessions: state.sessions.map(s => s.id === targetSessionId ? updatedSession : s),
-          isLoading: false
+          isLoading: false,
+          isGenerating: false
         }));
         return updatedSession.messages.at(-1) || null;
       }
-      set({ isLoading: false });
+      set({ isLoading: false, isGenerating: false });
       return null;
     } catch (e) {
-      set({ error: (e as Error).message, isLoading: false });
+      set({ error: (e as Error).message, isLoading: false, isGenerating: false });
       return null;
     }
   },
@@ -165,7 +171,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return;
     }
 
-    set({ isLoading: true, error: null });
+    // --- Actualización optimista del mensaje del usuario con la cita ---
+    const now = new Date();
+    const optimisticUserMessage: ChatMessage = {
+      id: `optimistic-${uuidv4()}`,
+      role: 'user',
+      content: prompt,
+      timestamp: now,
+      status: 'success',
+      quotedChartRef: {
+        chartId: quotedChart.chartId,
+        chartType: quotedChart.chartType,
+        title: quotedChart.title
+      }
+    };
+
+    set((state) => ({
+      sessions: state.sessions.map(s =>
+        s.id === activeSessionId
+          ? { ...s, messages: [...s.messages, optimisticUserMessage], updatedAt: now }
+          : s
+      ),
+      isLoading: true,
+      isGenerating: true,
+      error: null
+    }));
+    // --------------------------------------------------------------------
 
     try {
       // 1. Llamada al backend — devuelve el MISMO chart_id actualizado
@@ -201,7 +232,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Error al regenerar el gráfico.' });
     } finally {
-      set({ isLoading: false });
+      set({ isLoading: false, isGenerating: false });
     }
   },
 

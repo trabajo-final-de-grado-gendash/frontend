@@ -36,6 +36,7 @@
   --color-lightbox-bg: #ffffff;
 }
 
+/* ── Global Styles ─────────────────────────────────────────────────── */
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -44,6 +45,17 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ── Logo en Empty State ─────────────────────────────────────────── */
+.empty-state-logo {
+  opacity: 0.9;
+  filter: drop-shadow(0 25px 25px rgba(0, 0, 0, 0.15));
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+[data-theme="light"] .empty-state-logo {
+  filter: drop-shadow(0 25px 25px rgba(0, 0, 0, 0.05));
 }
 
 #root {

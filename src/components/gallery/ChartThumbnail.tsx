@@ -9,6 +9,16 @@ interface ChartThumbnailProps {
   chart: ChartAsset;
 }
 
+const CHART_TYPE_LABELS: Record<string, string> = {
+  bar: 'Barra', line: 'Línea', pie: 'Torta', scatter: 'Dispersión',
+  area: 'Área', histogram: 'Histograma', heatmap: 'Mapa de calor', box: 'Caja',
+};
+
+function formatChartType(type: string | undefined): string {
+  if (!type) return 'Desconocido';
+  return CHART_TYPE_LABELS[type.toLowerCase()] ?? (type.charAt(0).toUpperCase() + type.slice(1));
+}
+
 /** Modal que muestra el gráfico a tamaño completo */
 function ChartLightbox({ chart, onClose }: { chart: ChartAsset; onClose: () => void }) {
   const fontColor = '#111827'; // Siempre oscuro para contrastar con el fondo blanco del gráfico
@@ -30,7 +40,7 @@ function ChartLightbox({ chart, onClose }: { chart: ChartAsset; onClose: () => v
               {chart.title || 'Visualización'}
             </h2>
             <p className="text-xs text-[var(--color-text-secondary)]">
-              {chart.type} • {new Date(chart.createdAt).toLocaleDateString()}
+              {formatChartType(chart.type)} • {new Date(chart.createdAt).toLocaleDateString()}
             </p>
           </div>
           <button
@@ -50,6 +60,9 @@ function ChartLightbox({ chart, onClose }: { chart: ChartAsset; onClose: () => v
               paper_bgcolor: 'transparent',
               plot_bgcolor: 'transparent',
               font: { color: fontColor },
+              margin: { t: 40, r: 80, b: 70, l: 80 },
+              xaxis: { ...chart.config.layout?.xaxis, automargin: true },
+              yaxis: { ...chart.config.layout?.yaxis, automargin: true }
             }}
             config={{ responsive: true, displayModeBar: true }}
             style={{ width: '100%', height: '100%' }}
@@ -63,7 +76,7 @@ function ChartLightbox({ chart, onClose }: { chart: ChartAsset; onClose: () => v
 export default function ChartThumbnail({ chart }: ChartThumbnailProps) {
   const { projects, assignChartToProject, removeChartFromProject } = useChartStore();
   const fontColor = '#111827'; // Siempre oscuro
-  
+
   const [showMenu, setShowMenu] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -99,27 +112,52 @@ export default function ChartThumbnail({ chart }: ChartThumbnailProps) {
           title="Click para ampliar"
         >
           <Plot
-            data={chart.config.data}
+            data={chart.config.data.map((trace: any) => ({
+              ...trace,
+              ...(trace.marker ? { marker: { ...trace.marker, showscale: false } } : {})
+            }))}
             layout={{
               ...chart.config.layout,
               autosize: true,
               paper_bgcolor: 'transparent',
               plot_bgcolor: 'transparent',
               font: { color: fontColor },
-              margin: { t: 20, r: 10, b: 52, l: 52 },
+              // Márgenes ligeramente ajustados
+              margin: { t: 25, r: 20, b: 45, l: 45 },
               showlegend: false,
-              title: undefined,
+              coloraxis: { ...chart.config.layout?.coloraxis, showscale: false },
+              // Achicar el título general si existe
+              title: chart.config.layout?.title ? {
+                ...(typeof chart.config.layout.title === 'string' 
+                  ? { text: chart.config.layout.title } 
+                  : chart.config.layout.title),
+                font: { size: 10, color: fontColor }
+              } : undefined,
               xaxis: {
                 ...chart.config.layout?.xaxis,
                 showticklabels: true,
-                tickfont: { size: 9, color: fontColor },
-                titlefont: { size: 9, color: fontColor },
+                automargin: true,
+                tickfont: { size: 8, color: fontColor },
+                // Achicar el título del eje X
+                title: chart.config.layout?.xaxis?.title ? {
+                  ...(typeof chart.config.layout.xaxis.title === 'string'
+                    ? { text: chart.config.layout.xaxis.title }
+                    : chart.config.layout.xaxis.title),
+                  font: { size: 9, color: fontColor }
+                } : undefined,
               },
               yaxis: {
                 ...chart.config.layout?.yaxis,
                 showticklabels: true,
-                tickfont: { size: 9, color: fontColor },
-                titlefont: { size: 9, color: fontColor },
+                automargin: true,
+                tickfont: { size: 8, color: fontColor },
+                // Achicar el título del eje Y
+                title: chart.config.layout?.yaxis?.title ? {
+                  ...(typeof chart.config.layout.yaxis.title === 'string'
+                    ? { text: chart.config.layout.yaxis.title }
+                    : chart.config.layout.yaxis.title),
+                  font: { size: 9, color: fontColor }
+                } : undefined,
               },
             }}
             config={{ staticPlot: true, responsive: true }}
@@ -138,7 +176,7 @@ export default function ChartThumbnail({ chart }: ChartThumbnailProps) {
               {chart.title || 'Sin título'}
             </h3>
             <p className="truncate text-xs text-[var(--color-text-secondary)]">
-              {chart.type} • {new Date(chart.createdAt).toLocaleDateString()}
+              {formatChartType(chart.type)} • {new Date(chart.createdAt).toLocaleDateString()}
             </p>
             {chart.projectId && (
               <p className="mt-0.5 truncate text-[10px] text-[var(--color-primary)] font-medium">
@@ -187,9 +225,8 @@ export default function ChartThumbnail({ chart }: ChartThumbnailProps) {
                         <button
                           key={p.id}
                           onClick={() => handleAssign(p.id)}
-                          className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-[var(--color-bg-input)] ${
-                            chart.projectId === p.id ? 'text-[var(--color-primary)] font-medium' : 'text-[var(--color-text-primary)]'
-                          }`}
+                          className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-[var(--color-bg-input)] ${chart.projectId === p.id ? 'text-[var(--color-primary)] font-medium' : 'text-[var(--color-text-primary)]'
+                            }`}
                         >
                           <FolderPlus className="h-3.5 w-3.5" />
                           {p.name}

@@ -11,7 +11,7 @@ interface GenerateRequestDto {
   session_id?: string;
 }
 
-type GenerateResponseType = 'visualization' | 'clarification' | 'message';
+type GenerateResponseType = 'visualization' | 'clarification' | 'message' | 'error';
 
 interface GenerateResponseDto {
   response_type: GenerateResponseType;
@@ -51,13 +51,27 @@ function toAssistantErrorContent(reason: string): string {
 }
 
 function mapHistoryItemToMessage(item: SessionHistoryItemDto): ChatMessage {
+  const isUser = item.role === 'user';
+  let quotedChartRef = undefined;
+
+  if (isUser && item.chart_id) {
+    // Es una cita (regeneración). Intentamos buscar el título en el store de charts
+    const existingChart = useChartStore.getState().charts.find(c => c.id === item.chart_id);
+    quotedChartRef = {
+      chartId: item.chart_id,
+      chartType: existingChart?.type || 'gráfico',
+      title: existingChart?.title || 'Visualización citada'
+    };
+  }
+
   return {
     id: uuidv4(),
-    role: item.role === 'user' ? 'user' : 'assistant',
+    role: isUser ? 'user' : 'assistant',
     content: item.content,
     timestamp: new Date(item.timestamp),
     status: 'success',
-    chartAssetId: item.chart_id ?? undefined,
+    chartAssetId: !isUser ? (item.chart_id ?? undefined) : undefined,
+    quotedChartRef
   };
 }
 
@@ -156,7 +170,7 @@ export class ApiChatService implements IChatService {
         role: 'assistant',
         content: response.message || 'Procesado correctamente.',
         timestamp: new Date(),
-        status: 'success',
+        status: response.response_type === 'error' ? 'error' : 'success',
         chartAssetId: response.chart_id || undefined,
       };
     } catch (error) {

@@ -87,90 +87,22 @@ export default function ChartContainer({ chartId, onQuote }: ChartContainerProps
     );
   }
 
+  let xAxisTitle = '';
+  let yAxisTitle = '';
+  let parseError = false;
+
   try {
-    const xAxisTitle = extractTitleText(
+    xAxisTitle = extractTitleText(
       (chart.config.layout?.xaxis as { title?: unknown } | undefined)?.title,
     );
-    const yAxisTitle = extractTitleText(
+    yAxisTitle = extractTitleText(
       (chart.config.layout?.yaxis as { title?: unknown } | undefined)?.title,
     );
-
-    return (
-      <>
-        {/* Wrapper con overlay de acciones */}
-        <div className="group relative">
-          {/* Botones de acción — visibles on hover */}
-          <div className="absolute right-2 top-2 z-10 flex gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-            {/* Lápiz: edición explícita (TFG-56) */}
-            <button
-              onClick={() => setIsEditModalOpen(true)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-bg-sidebar)]/90 text-[var(--color-text-secondary)] shadow-sm backdrop-blur-sm transition-colors hover:text-[var(--color-primary)]"
-              title="Editar gráfico"
-              id={`chart-edit-btn-${chartId}`}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-
-            {/* Citar: edición generativa (TFG-57) */}
-            {onQuote && (
-              <button
-                onClick={() =>
-                  onQuote({ chartId: chart.id, title: chart.title, chartType: chart.type })
-                }
-                className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-bg-sidebar)]/90 text-[var(--color-text-secondary)] shadow-sm backdrop-blur-sm transition-colors hover:text-[var(--color-primary)]"
-                title="Citar en el chat"
-                id={`chart-quote-btn-${chartId}`}
-              >
-                <MessageSquare className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Gráfico */}
-          <div className="rounded-xl bg-white p-2 shadow-inner border border-gray-200 overflow-hidden relative">
-            <Plot
-              data={chart.config.data}
-              layout={{
-                ...chart.config.layout,
-                autosize: true,
-                paper_bgcolor: 'transparent',
-                plot_bgcolor: 'transparent',
-                font: { color: fontColor },
-                xaxis: {
-                  ...chart.config.layout?.xaxis,
-                  tickfont: { color: fontColor },
-                  titlefont: { color: fontColor },
-                },
-                yaxis: {
-                  ...chart.config.layout?.yaxis,
-                  tickfont: { color: fontColor },
-                  titlefont: { color: fontColor },
-                },
-                margin: {
-                  t: 40,
-                  r: 20,
-                  b: xAxisTitle ? 70 : 40,
-                  l: yAxisTitle ? 80 : 50,
-                },
-              }}
-              config={{ responsive: true, displayModeBar: false }}
-              useResizeHandler
-              style={{ width: '100%', height: '300px' }}
-            />
-          </div>
-        </div>
-
-        {/* Modal de edición */}
-        {isEditModalOpen && (
-          <ChartEditModal
-            chart={chart}
-            onClose={() => setIsEditModalOpen(false)}
-            onSaved={loadChart}
-          />
-        )}
-      </>
-    );
   } catch {
+    parseError = true;
+  }
+
+  if (parseError) {
     return (
       <div className="flex h-48 items-center justify-center gap-2 text-[var(--color-error)]">
         <AlertCircle className="h-5 w-5" />
@@ -178,4 +110,80 @@ export default function ChartContainer({ chartId, onQuote }: ChartContainerProps
       </div>
     );
   }
+
+  return (
+    <>
+      {/* Wrapper con overlay de acciones */}
+      <div className="group relative w-full">
+        {/* Botones de acción — visibles on hover */}
+        <div className="absolute right-2 top-2 z-10 flex gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+          {/* Lápiz: edición explícita (TFG-56) */}
+          <button
+            onClick={() => setIsEditModalOpen(true)}
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-bg-sidebar)]/90 text-[var(--color-text-secondary)] shadow-sm backdrop-blur-sm transition-colors hover:text-[var(--color-primary)]"
+            title="Editar gráfico"
+            id={`chart-edit-btn-${chartId}`}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+
+          {/* Citar: edición generativa (TFG-57) */}
+          {onQuote && (
+            <button
+              onClick={() =>
+                onQuote({ chartId: chart.id, title: chart.title, chartType: chart.type })
+              }
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-bg-sidebar)]/90 text-[var(--color-text-secondary)] shadow-sm backdrop-blur-sm transition-colors hover:text-[var(--color-primary)]"
+              title="Citar en el chat"
+              id={`chart-quote-btn-${chartId}`}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Gráfico */}
+        <div className="rounded-xl bg-white p-2 shadow-inner border border-gray-200 overflow-hidden relative w-full">
+          <Plot
+            data={chart.config.data}
+            layout={{
+              ...chart.config.layout,
+              autosize: true,
+              paper_bgcolor: 'transparent',
+              plot_bgcolor: 'transparent',
+              font: { color: fontColor },
+              xaxis: {
+                ...chart.config.layout?.xaxis,
+                tickfont: { color: fontColor },
+                titlefont: { color: fontColor },
+              },
+              yaxis: {
+                ...chart.config.layout?.yaxis,
+                tickfont: { color: fontColor },
+                titlefont: { color: fontColor },
+              },
+              margin: {
+                t: 40,
+                r: 20,
+                b: xAxisTitle ? 70 : 40,
+                l: yAxisTitle ? 80 : 50,
+              },
+            }}
+            config={{ responsive: true, displayModeBar: false }}
+            useResizeHandler
+            style={{ width: '100%', height: '300px' }}
+          />
+        </div>
+      </div>
+
+      {/* Modal de edición */}
+      {isEditModalOpen && (
+        <ChartEditModal
+          chart={chart}
+          onClose={() => setIsEditModalOpen(false)}
+          onSaved={loadChart}
+        />
+      )}
+    </>
+  );
 }

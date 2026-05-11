@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2 } from '../../layouts/icons';
+import { Send } from '../../layouts/icons';
 import type { QuotedChartRef } from '../../models/types';
 import QuotedChart from '../charts/QuotedChart';
 

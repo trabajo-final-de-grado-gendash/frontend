@@ -21,6 +21,7 @@ function extractTitleText(value: unknown): string {
 
 export default function ChartContainer({ chartId, onQuote }: ChartContainerProps) {
   const getChartById = useChartStore((s) => s.getChartById);
+  const fontColor = '#111827'; // Siempre oscuro
 
   // Suscripción reactiva: cuando directUpdate() actualiza el store,
   // este selector dispara un re-render automáticamente.
@@ -34,7 +35,7 @@ export default function ChartContainer({ chartId, onQuote }: ChartContainerProps
   // El chart efectivo: prefiere el del store (reactivo) sobre el cargado async
   const chart = chartFromStore ?? asyncChart;
 
-  // Carga inicial desde ApiLocalState (para charts que aún no están en useChartStore.charts)
+  // Carga inicial desde la API (para charts que aún no están en useChartStore.charts)
   useEffect(() => {
     if (chartFromStore) {
       // Ya está en el store, no hace falta fetch async
@@ -86,51 +87,81 @@ export default function ChartContainer({ chartId, onQuote }: ChartContainerProps
     );
   }
 
+  let xAxisTitle = '';
+  let yAxisTitle = '';
+  let parseError = false;
+
   try {
-    const xAxisTitle = extractTitleText(
+    xAxisTitle = extractTitleText(
       (chart.config.layout?.xaxis as { title?: unknown } | undefined)?.title,
     );
-    const yAxisTitle = extractTitleText(
+    yAxisTitle = extractTitleText(
       (chart.config.layout?.yaxis as { title?: unknown } | undefined)?.title,
     );
+  } catch {
+    parseError = true;
+  }
 
+  if (parseError) {
     return (
-      <>
-        {/* Wrapper con overlay de acciones */}
-        <div className="group relative">
-          {/* Botones de acción — visibles on hover */}
-          <div className="absolute right-2 top-2 z-10 flex gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-            {/* Lápiz: edición explícita (TFG-56) */}
+      <div className="flex h-48 items-center justify-center gap-2 text-[var(--color-error)]">
+        <AlertCircle className="h-5 w-5" />
+        <span className="text-sm">Error al renderizar el gráfico</span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Wrapper con overlay de acciones */}
+      <div className="group relative w-full">
+        {/* Botones de acción — visibles on hover */}
+        <div className="absolute right-2 top-2 z-10 flex gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+          {/* Lápiz: edición explícita (TFG-56) */}
+          <button
+            onClick={() => setIsEditModalOpen(true)}
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-bg-sidebar)]/90 text-[var(--color-text-secondary)] shadow-sm backdrop-blur-sm transition-colors hover:text-[var(--color-primary)]"
+            title="Editar gráfico"
+            id={`chart-edit-btn-${chartId}`}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+
+          {/* Citar: edición generativa (TFG-57) */}
+          {onQuote && (
             <button
-              onClick={() => setIsEditModalOpen(true)}
+              onClick={() =>
+                onQuote({ chartId: chart.id, title: chart.title, chartType: chart.type })
+              }
               className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-bg-sidebar)]/90 text-[var(--color-text-secondary)] shadow-sm backdrop-blur-sm transition-colors hover:text-[var(--color-primary)]"
-              title="Editar gráfico"
-              id={`chart-edit-btn-${chartId}`}
+              title="Citar en el chat"
+              id={`chart-quote-btn-${chartId}`}
             >
-              <Pencil className="h-3.5 w-3.5" />
+              <MessageSquare className="h-3.5 w-3.5" />
             </button>
+          )}
+        </div>
 
-            {/* Citar: edición generativa (TFG-57) */}
-            {onQuote && (
-              <button
-                onClick={() =>
-                  onQuote({ chartId: chart.id, title: chart.title, chartType: chart.type })
-                }
-                className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-bg-sidebar)]/90 text-[var(--color-text-secondary)] shadow-sm backdrop-blur-sm transition-colors hover:text-[var(--color-primary)]"
-                title="Citar en el chat"
-                id={`chart-quote-btn-${chartId}`}
-              >
-                <MessageSquare className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Gráfico */}
+        {/* Gráfico */}
+        <div className="rounded-xl bg-white p-2 shadow-inner border border-gray-200 overflow-hidden relative w-full">
           <Plot
             data={chart.config.data}
             layout={{
               ...chart.config.layout,
               autosize: true,
+              paper_bgcolor: 'transparent',
+              plot_bgcolor: 'transparent',
+              font: { color: fontColor },
+              xaxis: {
+                ...chart.config.layout?.xaxis,
+                tickfont: { color: fontColor },
+                titlefont: { color: fontColor },
+              },
+              yaxis: {
+                ...chart.config.layout?.yaxis,
+                tickfont: { color: fontColor },
+                titlefont: { color: fontColor },
+              },
               margin: {
                 t: 40,
                 r: 20,
@@ -143,23 +174,16 @@ export default function ChartContainer({ chartId, onQuote }: ChartContainerProps
             style={{ width: '100%', height: '300px' }}
           />
         </div>
-
-        {/* Modal de edición */}
-        {isEditModalOpen && (
-          <ChartEditModal
-            chart={chart}
-            onClose={() => setIsEditModalOpen(false)}
-            onSaved={loadChart}
-          />
-        )}
-      </>
-    );
-  } catch {
-    return (
-      <div className="flex h-48 items-center justify-center gap-2 text-[var(--color-error)]">
-        <AlertCircle className="h-5 w-5" />
-        <span className="text-sm">Error al renderizar el gráfico</span>
       </div>
-    );
-  }
+
+      {/* Modal de edición */}
+      {isEditModalOpen && (
+        <ChartEditModal
+          chart={chart}
+          onClose={() => setIsEditModalOpen(false)}
+          onSaved={loadChart}
+        />
+      )}
+    </>
+  );
 }

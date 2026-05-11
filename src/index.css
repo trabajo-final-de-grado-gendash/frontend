@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Base application styles */
+/* ── Dark theme (default) ─────────────────────────────────────────── */
 :root {
   --color-primary: #0ea5e9;
   --color-primary-hover: #0284c7;
@@ -14,8 +14,29 @@
   --color-success: #10b981;
   --color-error: #ef4444;
   --color-warning: #f59e0b;
+  --color-lightbox-overlay: rgba(0, 0, 0, 0.75);
+  --color-lightbox-bg: #1a2233;
 }
 
+/* ── Light theme ──────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --color-primary: #0284c7;
+  --color-primary-hover: #0369a1;
+  --color-bg-main: #f0f4f8;
+  --color-bg-sidebar: #ffffff;
+  --color-bg-card: #ffffff;
+  --color-bg-input: #e5e7eb;
+  --color-text-primary: #111827;
+  --color-text-secondary: #6b7280;
+  --color-border: #d1d5db;
+  --color-success: #059669;
+  --color-error: #dc2626;
+  --color-warning: #d97706;
+  --color-lightbox-overlay: rgba(0, 0, 0, 0.55);
+  --color-lightbox-bg: #ffffff;
+}
+
+/* ── Global Styles ─────────────────────────────────────────────────── */
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -23,6 +44,18 @@ body {
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ── Logo en Empty State ─────────────────────────────────────────── */
+.empty-state-logo {
+  opacity: 0.9;
+  filter: drop-shadow(0 25px 25px rgba(0, 0, 0, 0.15));
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+[data-theme="light"] .empty-state-logo {
+  filter: drop-shadow(0 25px 25px rgba(0, 0, 0, 0.05));
 }
 
 #root {

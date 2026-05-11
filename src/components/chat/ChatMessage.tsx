@@ -10,7 +10,7 @@ interface ChatMessageProps {
 
 const CHART_TYPE_LABELS: Record<string, string> = {
   bar: 'Barra', line: 'Línea', pie: 'Torta', scatter: 'Dispersión',
-  area: 'Área', histogram: 'Histograma', heatmap: 'Mapa de calor', box: 'Box',
+  area: 'Área', histogram: 'Histograma', heatmap: 'Mapa de calor', box: 'Caja',
 };
 
 function formatChartType(type: string): string {
@@ -46,6 +46,8 @@ export default function ChatMessage({ message, onQuote }: ChatMessageProps) {
     <div className={`flex px-4 py-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
         className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+          message.chartAssetId ? 'w-full min-w-[300px]' : ''
+        } ${
           isUser
             ? 'bg-[var(--color-primary)] text-white'
             : 'bg-[var(--color-bg-card)] text-[var(--color-text-primary)]'
@@ -65,9 +67,11 @@ export default function ChatMessage({ message, onQuote }: ChatMessageProps) {
         )}
 
         {/* Markdown text content */}
-        <div className="prose prose-invert prose-sm max-w-none">
-          <ReactMarkdown>{message.content}</ReactMarkdown>
-        </div>
+        {message.content && message.content !== "(No content)" && (
+          <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-ul:list-disc prose-ul:pl-5 prose-li:my-0.5">
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </div>
+        )}
 
         {/* Inline chart if present */}
         {message.chartAssetId && (

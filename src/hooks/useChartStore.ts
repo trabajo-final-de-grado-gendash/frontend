@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ChartAsset, ChartGroup } from '../models/types';
+import type { ChartAsset, Project } from '../models/types';
 import { ApiChartService } from '../services/repositories/ApiChartService';
 import type { IChartService, ChartMetadataUpdate } from '../services/interfaces';
 
@@ -7,29 +7,30 @@ const chartService: IChartService = new ApiChartService();
 
 interface ChartState {
   charts: ChartAsset[];
-  groups: ChartGroup[];
-  selectedGroupId: string | null;
+  projects: Project[];
+  selectedProjectId: string | null;
   isLoading: boolean;
   error: string | null;
 
   // Actions
   fetchCharts: () => Promise<void>;
-  fetchGroups: () => Promise<void>;
+  fetchProjects: () => Promise<void>;
   getChartById: (id: string) => Promise<ChartAsset | null>;
   updateChartMetadata: (chartId: string, updates: ChartMetadataUpdate) => Promise<ChartAsset | null>;
-  filterByGroup: (groupId: string | null) => void;
-  createGroup: (name: string, description?: string) => Promise<ChartGroup | null>;
-  assignChartToGroup: (chartId: string, groupId: string) => Promise<void>;
-  removeChartFromGroup: (chartId: string) => Promise<void>;
-  /** Actualiza un ChartAsset en local state Y en el store Zustand reactivamente. */
+  filterByProject: (projectId: string | null) => void;
+  createProject: (name: string, description?: string) => Promise<Project | null>;
+  deleteProject: (projectId: string) => Promise<void>;
+  assignChartToProject: (chartId: string, projectId: string) => Promise<void>;
+  removeChartFromProject: (chartId: string, projectId: string) => Promise<void>;
+  /** Actualiza un ChartAsset en el store Zustand reactivamente. */
   directUpdate: (chart: ChartAsset) => void;
   clearError: () => void;
 }
 
-export const useChartStore = create<ChartState>((set) => ({
+export const useChartStore = create<ChartState>((set, get) => ({
   charts: [],
-  groups: [],
-  selectedGroupId: null,
+  projects: [],
+  selectedProjectId: null,
   isLoading: false,
   error: null,
 
@@ -43,10 +44,10 @@ export const useChartStore = create<ChartState>((set) => ({
     }
   },
 
-  fetchGroups: async () => {
+  fetchProjects: async () => {
     try {
-      const groups = await chartService.getGroups();
-      set({ groups });
+      const projects = await chartService.getProjects();
+      set({ projects });
     } catch (e) {
       set({ error: (e as Error).message });
     }
@@ -73,40 +74,57 @@ export const useChartStore = create<ChartState>((set) => ({
     }
   },
 
-  filterByGroup: (groupId: string | null) => {
-    set({ selectedGroupId: groupId });
+  filterByProject: (projectId: string | null) => {
+    set({ selectedProjectId: projectId });
   },
 
-  createGroup: async (name: string, description?: string) => {
+  createProject: async (name: string, description?: string) => {
     set({ isLoading: true, error: null });
     try {
-      const group = await chartService.createGroup(name, description);
-      const groups = await chartService.getGroups();
-      set({ groups, isLoading: false });
-      return group;
+      const project = await chartService.createProject(name, description);
+      await get().fetchProjects();
+      set({ isLoading: false });
+      return project;
     } catch (e) {
       set({ error: (e as Error).message, isLoading: false });
       return null;
     }
   },
 
-  assignChartToGroup: async (chartId: string, groupId: string) => {
+  assignChartToProject: async (chartId: string, projectId: string) => {
     try {
-      await chartService.assignChartToGroup(chartId, groupId);
-      const charts = await chartService.getAllCharts();
-      set({ charts });
+      await chartService.assignChartToProject(chartId, projectId);
+      await get().fetchCharts();
     } catch (e) {
       set({ error: (e as Error).message });
     }
   },
 
-  removeChartFromGroup: async (chartId: string) => {
+  removeChartFromProject: async (chartId: string, projectId: string) => {
     try {
-      await chartService.removeChartFromGroup(chartId);
-      const charts = await chartService.getAllCharts();
-      set({ charts });
+      await chartService.removeChartFromProject(chartId, projectId);
+      await get().fetchCharts();
     } catch (e) {
       set({ error: (e as Error).message });
+    }
+  },
+
+  deleteProject: async (projectId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await chartService.deleteProject(projectId);
+      // Quitar proyecto del estado local y limpiar filtro si era el seleccionado
+      set((state) => ({
+        projects: state.projects.filter((p) => p.id !== projectId),
+        selectedProjectId: state.selectedProjectId === projectId ? null : state.selectedProjectId,
+        // Actualizar charts: los charts de ese proyecto quedan sin proyecto
+        charts: state.charts.map((c) =>
+          c.projectId === projectId ? { ...c, projectId: undefined } : c
+        ),
+        isLoading: false,
+      }));
+    } catch (e) {
+      set({ error: (e as Error).message, isLoading: false });
     }
   },
 

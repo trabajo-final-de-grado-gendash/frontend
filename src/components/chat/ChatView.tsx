@@ -17,8 +17,9 @@ export default function ChatView() {
   const {
     sessions,
     activeSessionId,
-    isLoading,
     error,
+    isSessionLoading,
+    isSessionGenerating,
     fetchSessions,
     setActiveSession,
     createSession,
@@ -26,6 +27,9 @@ export default function ChatView() {
     regenerateChart,
     clearError,
   } = useChatStore();
+
+  const isLoading = isSessionLoading(activeSessionId ?? '');
+  const isGenerating = isSessionGenerating(activeSessionId ?? '');
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
 
@@ -36,10 +40,12 @@ export default function ChatView() {
 
   // Sincronizar URL param con sesión activa
   useEffect(() => {
-    if (sessionId && sessionId !== activeSessionId) {
-      setActiveSession(sessionId);
-    } else if (!sessionId && activeSessionId) {
-      useChatStore.setState({ activeSessionId: null });
+    if (sessionId) {
+      if (sessionId !== activeSessionId) {
+        setActiveSession(sessionId);
+      }
+    } else if (activeSessionId !== null) {
+      setActiveSession(null);
     }
   }, [sessionId, activeSessionId, setActiveSession]);
 
@@ -82,21 +88,97 @@ export default function ChatView() {
     }
     : null;
 
-  // Empty state (no active session)
-  if (!activeSession) {
+  // Empty state (no active session or empty session)
+  if (!activeSession || activeSession.messages.length === 0) {
     return (
       <div className="flex flex-1 flex-col min-h-0">
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
-          <img src="/logo.png" alt="GenDash" className="h-48 w-48 scale-150 object-contain mix-blend-screen opacity-90 drop-shadow-2xl" />
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
-            GenDash
-          </h1>
-          <p className="max-w-md text-center text-sm text-[var(--color-text-secondary)]">
-            Escribe una consulta en lenguaje natural para generar gráficos de
-            Business Intelligence. Ejemplo: <em>"Mostrar ventas por región"</em>
-          </p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-6 p-8 overflow-y-auto">
+          <div className="flex flex-col items-center gap-3">
+            <img src="/logo.png" alt="BIGENIA" className="h-32 w-32 object-contain empty-state-logo" />
+            <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">
+              BIGENIA
+            </h1>
+            <p className="max-w-xl text-center text-base text-[var(--color-text-secondary)]">
+              Tu asistente de Business Intelligence. Puedo generar gráficos y visualizaciones a partir de la base de datos de una tienda de música digital.
+            </p>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-8 w-full max-w-4xl mt-4">
+            <div className="flex-1 bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl p-6">
+              <h2 className="text-sm font-semibold text-[var(--color-text-primary)] uppercase tracking-wider mb-4">
+                Información Disponible
+              </h2>
+              <ul className="grid grid-cols-2 gap-y-4 gap-x-4 text-sm text-[var(--color-text-secondary)]">
+                <li className="flex flex-col">
+                  <strong className="text-[var(--color-text-primary)]">Álbumes</strong>
+                  <span className="text-xs opacity-70 mt-0.5">Colecciones musicales</span>
+                </li>
+                <li className="flex flex-col">
+                  <strong className="text-[var(--color-text-primary)]">Artistas</strong>
+                  <span className="text-xs opacity-70 mt-0.5">Creadores e intérpretes</span>
+                </li>
+                <li className="flex flex-col">
+                  <strong className="text-[var(--color-text-primary)]">Clientes</strong>
+                  <span className="text-xs opacity-70 mt-0.5">Compradores registrados</span>
+                </li>
+                <li className="flex flex-col">
+                  <strong className="text-[var(--color-text-primary)]">Empleados</strong>
+                  <span className="text-xs opacity-70 mt-0.5">Personal de la tienda</span>
+                </li>
+                <li className="flex flex-col">
+                  <strong className="text-[var(--color-text-primary)]">Géneros</strong>
+                  <span className="text-xs opacity-70 mt-0.5">Estilos de música</span>
+                </li>
+                <li className="flex flex-col">
+                  <strong className="text-[var(--color-text-primary)]">Facturas</strong>
+                  <span className="text-xs opacity-70 mt-0.5">Historial de ventas</span>
+                </li>
+                <li className="flex flex-col">
+                  <strong className="text-[var(--color-text-primary)]">Detalle Facturas</strong>
+                  <span className="text-xs opacity-70 mt-0.5">Ítems por cada venta</span>
+                </li>
+                <li className="flex flex-col">
+                  <strong className="text-[var(--color-text-primary)]">Formatos</strong>
+                  <span className="text-xs opacity-70 mt-0.5">Tipos de archivo (MP3)</span>
+                </li>
+                <li className="flex flex-col">
+                  <strong className="text-[var(--color-text-primary)]">Playlists</strong>
+                  <span className="text-xs opacity-70 mt-0.5">Listas de reproducción</span>
+                </li>
+                <li className="flex flex-col">
+                  <strong className="text-[var(--color-text-primary)]">Canciones</strong>
+                  <span className="text-xs opacity-70 mt-0.5">Pistas del catálogo</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="flex-1 bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl p-6">
+              <h2 className="text-sm font-semibold text-[var(--color-text-primary)] uppercase tracking-wider mb-4">
+                Ejemplos de Consultas
+              </h2>
+              <ul className="flex flex-col gap-3 text-sm text-[var(--color-text-secondary)]">
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 flex h-1.5 w-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
+                  <span>"Mostrar las ventas totales por país"</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 flex h-1.5 w-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
+                  <span>"¿Cuáles son los 10 artistas más vendidos?"</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 flex h-1.5 w-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
+                  <span>"Gráfico de canciones por género"</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 flex h-1.5 w-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
+                  <span>"Evolución de ventas por mes en 2024"</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
           {error && (
-            <div className="w-full max-w-xl rounded-2xl border border-red-700/70 bg-red-950/40 px-4 py-3 text-sm text-red-100">
+            <div className="w-full max-w-xl rounded-2xl border border-red-700/70 bg-red-950/40 px-4 py-3 text-sm text-red-100 mt-4">
               {error}
             </div>
           )}
@@ -126,7 +208,7 @@ export default function ChatView() {
           {transientErrorMessage && (
             <ChatMessageComponent message={transientErrorMessage} />
           )}
-          {isLoading && (
+          {isGenerating && (
             <ChatMessageComponent
               message={{
                 id: 'loading-indicator',

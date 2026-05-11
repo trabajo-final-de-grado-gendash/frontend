@@ -68,7 +68,7 @@ export default function ChatMessage({ message, onQuote }: ChatMessageProps) {
 
         {/* Markdown text content */}
         {message.content && message.content !== "(No content)" && (
-          <div className="prose prose-invert prose-sm max-w-none">
+          <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-ul:list-disc prose-ul:pl-5 prose-li:my-0.5">
             <ReactMarkdown>{message.content}</ReactMarkdown>
           </div>
         )}

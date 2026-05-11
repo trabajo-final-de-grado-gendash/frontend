@@ -1,7 +1,8 @@
-import { Outlet, NavLink } from 'react-router-dom';
-import { MessageSquare, BarChart3 } from './icons';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Plus, BarChart3 } from './icons';
 import SidebarHistory from '../components/common/SidebarHistory';
 import { useTheme } from '../hooks/useTheme';
+import { useChatStore } from '../hooks/useChatStore';
 
 function SunIcon() {
   return (
@@ -27,33 +28,37 @@ function MoonIcon() {
 
 export default function MainLayout() {
   const { isDark, toggle } = useTheme();
+  const navigate = useNavigate();
+
+  const handleNewChat = () => {
+    useChatStore.getState().setActiveSession(null);
+    navigate('/', { replace: true });
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
       {/* Sidebar */}
       <aside className="flex w-64 flex-col border-r border-[var(--color-border)] bg-[var(--color-bg-sidebar)]">
         {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-4">
-          <img src="/logo.png" alt="GenDash" className="h-14 w-14 scale-150 object-contain drop-shadow-lg -ml-1" />
-          <span className="text-xl font-bold tracking-tight z-10">GenDash</span>
+        <div 
+          className="flex items-center gap-3 px-5 py-4 cursor-pointer" 
+          onClick={handleNewChat}
+          title="Nuevo chat"
+        >
+          <img src="/logo.png" alt="BIGENIA" className="h-14 w-14 scale-150 object-contain drop-shadow-lg -ml-1" />
+          <span className="text-xl font-bold tracking-tight z-10">BIGENIA</span>
         </div>
 
         {/* Navigation */}
         <nav className="flex flex-col gap-1 px-3 pt-2">
-          <NavLink
-            to="/"
-            end
-            className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-[var(--color-primary)] text-white'
-                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-input)] hover:text-[var(--color-text-primary)]'
-              }`
-            }
+          <button
+            onClick={handleNewChat}
+            className="flex items-center gap-3 rounded-lg border border-dashed border-[var(--color-border)] px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] cursor-pointer"
+            id="new-chat-btn"
           >
-            <MessageSquare className="h-4 w-4" />
-            Chat
-          </NavLink>
+            <Plus className="h-4 w-4" />
+            Nuevo chat
+          </button>
           <NavLink
             to="/gallery"
             className={({ isActive }) =>
@@ -71,6 +76,9 @@ export default function MainLayout() {
 
         {/* Chat history */}
         <div className="flex-1 overflow-y-auto px-3 pt-4">
+          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
+            Conversaciones
+          </p>
           <SidebarHistory />
         </div>
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 type Theme = 'dark' | 'light';
 
-const STORAGE_KEY = 'gendash-theme';
+const STORAGE_KEY = 'bigenia-theme';
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(() => {

@@ -35,18 +35,24 @@ function extractChartTitle(config: PlotlyChartConfig, fallbackType: string): str
   return fallbackType ? `Visualización ${fallbackType}` : 'Visualización regenerada';
 }
 
+// ── Constantes ────────────────────────────────────────────────────────────────
+
 // ── Store ─────────────────────────────────────────────────────────────────────
 
 interface ChatState {
   sessions: ChatSession[];
   activeSessionId: string | null;
-  isLoading: boolean;
-  isGenerating: boolean;
+  loadingSessions: Record<string, boolean>;
+  generatingSessions: Record<string, boolean>;
   error: string | null;
+
+  // Helpers
+  isSessionLoading: (sessionId: string) => boolean;
+  isSessionGenerating: (sessionId: string) => boolean;
 
   // Actions
   fetchSessions: () => Promise<void>;
-  setActiveSession: (id: string) => Promise<void>;
+  setActiveSession: (id: string | null) => Promise<void>;
   createSession: (message: string) => Promise<string>;
   sendMessage: (message: string, sessionId?: string) => Promise<ChatMessage | null>;
   regenerateChart: (quotedChart: QuotedChartRef, prompt: string) => Promise<void>;
@@ -56,59 +62,57 @@ interface ChatState {
 export const useChatStore = create<ChatState>((set, get) => ({
   sessions: [],
   activeSessionId: null,
-  isLoading: false,
-  isGenerating: false,
+  loadingSessions: {},
+  generatingSessions: {},
   error: null,
+
+  isSessionLoading: (sessionId: string) => !!get().loadingSessions[sessionId],
+  isSessionGenerating: (sessionId: string) => !!get().generatingSessions[sessionId],
 
   fetchSessions: async () => {
     set({ error: null });
     try {
-      const sessions = await chatService.getSessions();
-      set({ sessions });
+      const backendSessions = await chatService.getSessions();
+      set((state) => {
+        // Conservar sesiones locales que aún no fueron persistidas en el backend
+        const backendIds = new Set(backendSessions.map(s => s.id));
+        const localOnly = state.sessions.filter(s => !backendIds.has(s.id));
+        return { sessions: [...localOnly, ...backendSessions] };
+      });
     } catch (e) {
       set({ error: (e as Error).message });
     }
   },
 
-  setActiveSession: async (id: string) => {
+  setActiveSession: async (id: string | null) => {
     set({ activeSessionId: id, error: null });
-    // No ponemos isLoading: true aquí para evitar el parpadeo de la burbuja "Generando..."
-    // al entrar a un chat viejo.
+    if (!id) return;
+    
     try {
       const session = await chatService.getSessionById(id);
       if (session) {
         set((state) => ({
           sessions: state.sessions.map(s => s.id === id ? session : s),
-          isLoading: false
         }));
       } else {
-        // Sesión nueva: existe localmente pero aún no fue persistida en el backend
-        // (lazy creation — el backend la creará al primer generate)
         const localSession = get().sessions.find(s => s.id === id);
-        if (localSession) {
-          set({ isLoading: false });
-        } else {
-          set({ error: 'Sesión no encontrada', isLoading: false });
+        if (!localSession) {
+          set({ error: 'Sesión no encontrada' });
         }
       }
     } catch (e) {
-      // Si es un 404, verificar si existe localmente
       const localSession = get().sessions.find(s => s.id === id);
-      if (localSession) {
-        set({ isLoading: false });
-      } else {
-        set({ error: (e as Error).message, isLoading: false });
+      if (!localSession) {
+        set({ error: (e as Error).message });
       }
     }
   },
 
-  createSession: async (_message?: string) => {
-    // Generación puramente local (lazy)
+  createSession: async () => {
     const session = await chatService.createSession();
     set((state) => ({
       sessions: [session, ...state.sessions],
       activeSessionId: session.id,
-      isLoading: false
     }));
     return session.id;
   },
@@ -138,8 +142,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           ? { ...s, messages: [...s.messages, optimisticUserMessage], updatedAt: now }
           : s
       ),
-      isLoading: true,
-      isGenerating: true,
+      loadingSessions: { ...state.loadingSessions, [targetSessionId]: true },
+      generatingSessions: { ...state.generatingSessions, [targetSessionId]: true },
       error: null
     }));
     // --------------------------------------------------------
@@ -151,15 +155,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (updatedSession) {
         set((state) => ({
           sessions: state.sessions.map(s => s.id === targetSessionId ? updatedSession : s),
-          isLoading: false,
-          isGenerating: false
+          loadingSessions: { ...state.loadingSessions, [targetSessionId]: false },
+          generatingSessions: { ...state.generatingSessions, [targetSessionId]: false },
         }));
         return updatedSession.messages.at(-1) || null;
       }
-      set({ isLoading: false, isGenerating: false });
+      set((state) => ({
+        loadingSessions: { ...state.loadingSessions, [targetSessionId]: false },
+        generatingSessions: { ...state.generatingSessions, [targetSessionId]: false },
+      }));
       return null;
     } catch (e) {
-      set({ error: (e as Error).message, isLoading: false, isGenerating: false });
+      set((state) => ({
+        error: (e as Error).message,
+        loadingSessions: { ...state.loadingSessions, [targetSessionId]: false },
+        generatingSessions: { ...state.generatingSessions, [targetSessionId]: false },
+      }));
       return null;
     }
   },
@@ -192,17 +203,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
           ? { ...s, messages: [...s.messages, optimisticUserMessage], updatedAt: now }
           : s
       ),
-      isLoading: true,
-      isGenerating: true,
+      loadingSessions: { ...state.loadingSessions, [activeSessionId]: true },
+      generatingSessions: { ...state.generatingSessions, [activeSessionId]: true },
       error: null
     }));
     // --------------------------------------------------------------------
 
     try {
       // 1. Llamada al backend — devuelve el MISMO chart_id actualizado
-      const response = await postRegenerateChart(quotedChart.chartId, { 
-        prompt, 
-        session_id: activeSessionId 
+      const response = await postRegenerateChart(quotedChart.chartId, {
+        prompt,
+        session_id: activeSessionId
       });
 
       // 2. Actualizar el ChartAsset en el store PRIMERO (in-place)
@@ -232,7 +243,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Error al regenerar el gráfico.' });
     } finally {
-      set({ isLoading: false, isGenerating: false });
+      set((state) => ({
+        loadingSessions: { ...state.loadingSessions, [activeSessionId]: false },
+        generatingSessions: { ...state.generatingSessions, [activeSessionId]: false },
+      }));
     }
   },
 

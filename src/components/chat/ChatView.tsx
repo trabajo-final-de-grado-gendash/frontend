@@ -94,9 +94,9 @@ export default function ChatView() {
       <div className="flex flex-1 flex-col min-h-0">
         <div className="flex flex-1 flex-col items-center justify-center gap-6 p-8 overflow-y-auto">
           <div className="flex flex-col items-center gap-3">
-            <img src="/logo.png" alt="BIGENIA" className="h-32 w-32 object-contain empty-state-logo" />
+            <img src="/logo.png" alt="BIGenIA" className="h-32 w-32 object-contain empty-state-logo" />
             <h1 className="text-3xl font-bold text-[var(--color-text-primary)]">
-              BIGENIA
+              BIGenIA
             </h1>
             <p className="max-w-xl text-center text-base text-[var(--color-text-secondary)]">
               Tu asistente de Business Intelligence. Puedo generar gráficos y visualizaciones a partir de la base de datos de una tienda de música digital.

@@ -45,8 +45,8 @@ export default function MainLayout() {
           onClick={handleNewChat}
           title="Nuevo chat"
         >
-          <img src="/logo.png" alt="BIGENIA" className="h-14 w-14 scale-150 object-contain drop-shadow-lg -ml-1" />
-          <span className="text-xl font-bold tracking-tight z-10">BIGENIA</span>
+          <img src="/logo.png" alt="BIGenIA" className="h-14 w-14 scale-150 object-contain drop-shadow-lg -ml-1" />
+          <span className="text-xl font-bold tracking-tight z-10">BIGenIA</span>
         </div>
 
         {/* Navigation */}

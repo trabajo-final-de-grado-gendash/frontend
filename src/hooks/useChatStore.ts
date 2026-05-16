@@ -56,6 +56,7 @@ interface ChatState {
   createSession: (message: string) => Promise<string>;
   sendMessage: (message: string, sessionId?: string) => Promise<ChatMessage | null>;
   regenerateChart: (quotedChart: QuotedChartRef, prompt: string) => Promise<void>;
+  deleteSession: (sessionId: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -247,6 +248,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
         loadingSessions: { ...state.loadingSessions, [activeSessionId]: false },
         generatingSessions: { ...state.generatingSessions, [activeSessionId]: false },
       }));
+    }
+  },
+  
+  deleteSession: async (sessionId: string) => {
+    try {
+      await chatService.deleteSession(sessionId);
+      set((state) => {
+        const newSessions = state.sessions.filter((s) => s.id !== sessionId);
+        const newActiveId = state.activeSessionId === sessionId ? null : state.activeSessionId;
+        return {
+          sessions: newSessions,
+          activeSessionId: newActiveId,
+        };
+      });
+    } catch (e) {
+      set({ error: (e as Error).message });
     }
   },
 

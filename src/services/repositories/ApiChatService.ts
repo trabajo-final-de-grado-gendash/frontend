@@ -184,4 +184,10 @@ export class ApiChatService implements IChatService {
       };
     }
   }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    await apiRequest(`/api/v1/sessions/${sessionId}`, {
+      method: 'DELETE',
+    });
+  }
 }

@@ -15,6 +15,7 @@ export interface IChatService {
   getSessionById(id: string): Promise<ChatSession | null>;
   createSession(initialMessage?: string): Promise<ChatSession>;
   sendMessage(sessionId: string, message: string): Promise<ChatMessage>;
+  deleteSession(sessionId: string): Promise<void>;
 }
 
 /**

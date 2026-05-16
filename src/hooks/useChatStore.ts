@@ -75,10 +75,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const backendSessions = await chatService.getSessions();
       set((state) => {
-        // Conservar sesiones locales que aún no fueron persistidas en el backend
-        const backendIds = new Set(backendSessions.map(s => s.id));
-        const localOnly = state.sessions.filter(s => !backendIds.has(s.id));
-        return { sessions: [...localOnly, ...backendSessions] };
+        // Unir sesiones del backend con las locales existentes
+        const merged = backendSessions.map((b) => {
+          const existing = state.sessions.find((s) => s.id === b.id);
+          const isLoading = !!state.loadingSessions[b.id];
+
+          // Si la sesión ya tiene mensajes o se está cargando (para evitar race conditions), la protegemos
+          if (existing && (existing.messages.length > 0 || isLoading)) {
+            return {
+              ...b,
+              messages: existing.messages,
+              updatedAt: existing.updatedAt > new Date(b.created_at) ? existing.updatedAt : new Date(b.created_at),
+            };
+          }
+          return b;
+        });
+
+        // Conservar sesiones puramente locales (pendientes de guardado)
+        const backendIds = new Set(backendSessions.map((s) => s.id));
+        const localOnly = state.sessions.filter((s) => !backendIds.has(s.id));
+
+        return { sessions: [...localOnly, ...merged] };
       });
     } catch (e) {
       set({ error: (e as Error).message });
@@ -88,24 +105,43 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setActiveSession: async (id: string | null) => {
     set({ activeSessionId: id, error: null });
     if (!id) return;
+
+    // Si ya tenemos mensajes, no bloqueamos con loading (mejor UX)
+    // Pero si no los tenemos, marcamos como loading para evitar el empty state accidental
+    const existing = get().sessions.find(s => s.id === id);
+    const shouldLoad = !existing || existing.messages.length === 0;
+
+    if (shouldLoad) {
+      set(state => ({
+        loadingSessions: { ...state.loadingSessions, [id]: true }
+      }));
+    }
     
     try {
       const session = await chatService.getSessionById(id);
       if (session) {
-        set((state) => ({
-          sessions: state.sessions.map(s => s.id === id ? session : s),
-        }));
+        set((state) => {
+          const alreadyExists = state.sessions.some(s => s.id === id);
+          const newSessions = alreadyExists
+            ? state.sessions.map(s => s.id === id ? session : s)
+            : [session, ...state.sessions];
+            
+          return {
+            sessions: newSessions,
+            loadingSessions: { ...state.loadingSessions, [id]: false }
+          };
+        });
       } else {
-        const localSession = get().sessions.find(s => s.id === id);
-        if (!localSession) {
-          set({ error: 'Sesión no encontrada' });
-        }
+        set(state => ({
+          loadingSessions: { ...state.loadingSessions, [id]: false },
+          error: 'Sesión no encontrada'
+        }));
       }
     } catch (e) {
-      const localSession = get().sessions.find(s => s.id === id);
-      if (!localSession) {
-        set({ error: (e as Error).message });
-      }
+      set(state => ({
+        loadingSessions: { ...state.loadingSessions, [id]: false },
+        error: (e as Error).message
+      }));
     }
   },
 

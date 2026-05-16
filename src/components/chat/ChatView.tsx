@@ -33,11 +33,6 @@ export default function ChatView() {
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
 
-  // Cargar sesiones al montar
-  useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
-
   // Sincronizar URL param con sesión activa
   useEffect(() => {
     if (sessionId) {
@@ -88,8 +83,21 @@ export default function ChatView() {
     }
     : null;
 
+  // Loading state (fetching full session history)
+  if (isLoading && (!activeSession || activeSession.messages.length === 0)) {
+    return (
+      <div className="flex flex-1 items-center justify-center bg-[var(--color-bg-main)]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent"></div>
+          <span className="text-sm text-[var(--color-text-secondary)]">Cargando conversación...</span>
+        </div>
+      </div>
+    );
+  }
+
   // Empty state (no active session or empty session)
-  if (!activeSession || activeSession.messages.length === 0) {
+  // IMPORTANTE: No mostrar empty state si estamos cargando la sesión (evita parpadeo al navegar)
+  if (!activeSession || (activeSession.messages.length === 0 && !isLoading)) {
     return (
       <div className="flex flex-1 flex-col min-h-0">
         <div className="flex flex-1 flex-col items-center justify-center gap-6 p-8 overflow-y-auto">

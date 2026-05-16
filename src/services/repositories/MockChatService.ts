@@ -187,4 +187,9 @@ export class MockChatService implements IChatService {
 
     return assistantMsg;
   }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    await delay(100);
+    sessions = sessions.filter((s) => s.id !== sessionId);
+  }
 }

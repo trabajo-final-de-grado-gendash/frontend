@@ -83,6 +83,14 @@ function normalizeErrorMessage(message: string, status?: number): string {
     return 'El resultado solicitado no existe.';
   }
 
+  if (lower.includes('a project with this name already exists')) {
+    return 'Ya existe un proyecto con este nombre.';
+  }
+
+  if (lower.includes('chart not found')) {
+    return 'El gráfico solicitado no existe.';
+  }
+
   if (status === 503) {
     return 'La API no esta disponible temporalmente. Intenta nuevamente en unos segundos.';
   }
